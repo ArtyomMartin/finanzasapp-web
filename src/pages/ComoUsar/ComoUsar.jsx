@@ -1,12 +1,12 @@
 import { NavLink, Routes, Route, Navigate } from "react-router-dom"
-import Basico from "./Basico"
+import SimuladorBasico from "./SimuladorBasico"
 import Medio from "./Medio"
 import Avanzado from "./Avanzado"
 
 const tabs = [
-  { to: "basico", label: "Nivel Básico" },
-  { to: "medio", label: "Nivel Medio" },
-  { to: "avanzado", label: "Nivel Avanzado" },
+  { to: "/como-usar/basico", label: "Nivel Básico" },
+  { to: "/como-usar/medio", label: "Nivel Medio" },
+  { to: "/como-usar/avanzado", label: "Nivel Avanzado" },
 ]
 
 export default function ComoUsar() {
@@ -27,8 +27,8 @@ export default function ComoUsar() {
         ))}
       </div>
       <Routes>
-        <Route index element={<Navigate to="basico" />} />
-        <Route path="basico" element={<Basico />} />
+        <Route index element={<Navigate to="/como-usar/basico" replace />} />
+        <Route path="basico" element={<SimuladorBasico />} />
         <Route path="medio" element={<Medio />} />
         <Route path="avanzado" element={<Avanzado />} />
       </Routes>
