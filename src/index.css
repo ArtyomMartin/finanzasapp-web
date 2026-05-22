@@ -1,7 +1,15 @@
+@font-face {
+  font-family: 'Gabarito';
+  src: url('/fonts/gabarito.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
 *, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: 'Gabarito', sans-serif !important;
 }
 
 html, body {
@@ -9,6 +17,13 @@ html, body {
   height: 100%;
   overflow-x: hidden;
   background-color: #0f1115;
+  font-family: 'Gabarito', sans-serif;
+
+  background-image: url("/Fondo.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 #root {
