@@ -404,8 +404,8 @@ function Home() {
       </div>
 
       {/* Selector de columnas */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", backgroundColor: "rgba(15,17,21,0.97)", backdropFilter: "blur(12px)", padding: "12px 20px", display: "flex", flexWrap: "wrap", gap: "6px 4px", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: "11px", fontWeight: "600", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginRight: "6px", whiteSpace: "nowrap" }}>Columnas</span>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", padding: "12px 20px", display: "flex", flexWrap: "wrap", gap: "6px 4px", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: "11px", fontWeight: "600", color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", marginRight: "6px", whiteSpace: "nowrap" }}>Columnas</span>
         {COLUMNAS_DISPONIBLES.map(col => {
           const activa = columnasVisibles[col.id]
           return (

@@ -1,3 +1,5 @@
+//c:documents/finanzasapp-web/src/screens/Ajustes.jsx
+
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { Capacitor } from "@capacitor/core"
@@ -6,7 +8,7 @@ import { Share } from "@capacitor/share"
 import Backup from "../components/Backup"
 import DrawerMenu from "../components/DrawerMenu"
 import { useDatos } from "../context/AppContext"
-import { iniciarAuth, tokenGuardado, cerrarSesion, sincronizar, mergeDatos } from "../services/driveSync"
+import { iniciarAuth, tokenGuardado, cerrarSesion, sincronizar, mergeDatos, manejarCallbackDrive } from "../services/driveSync"
 import {
   iniciarAuthDropbox,
   tokenGuardadoDropbox,
@@ -29,6 +31,9 @@ import {
 
 const DROPBOX_APP_KEY = "gc2fxvtpc8qv6kq"
 
+// estiloTarjeta no incluye padding; se añade aquí para no afectar otras pantallas
+const estiloCard = { ...estiloTarjeta, padding: "20px" }
+
 export default function Ajustes() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -50,12 +55,9 @@ export default function Ajustes() {
   useEffect(() => { datosRef.current = datos }, [datos])
 
   // ── Estado de la tarjeta de Mantenimiento ──────────────────────────────────
-  // anioPurga: año seleccionado para purgar (por defecto el año anterior al actual)
   const anioActual = new Date().getFullYear()
   const [anioPurga, setAnioPurga] = useState(anioActual - 1)
-  // Estado del proceso: "idle" | "confirmando" | "purgando" | "ok" | "error"
   const [estadoPurga, setEstadoPurga] = useState("idle")
-  // Cuántos registros se compactaron en la última purga
   const [resultadoPurga, setResultadoPurga] = useState(null)
 
   const addLog = (msg, tipo = "info") => {
@@ -66,6 +68,13 @@ export default function Ajustes() {
   }
 
   useEffect(() => {
+    const volvioDeGoogle = manejarCallbackDrive()
+    if (volvioDeGoogle) {
+      addLog("Drive: autenticación completada", "ok")
+      setDriveConectado(true)
+      hacerSyncDrive()
+    }
+
     if (tokenGuardado()) {
       addLog("Drive: token guardado encontrado", "ok")
       setDriveConectado(true)
@@ -200,18 +209,13 @@ export default function Ajustes() {
   }
 
   // ── MANTENIMIENTO — Backup previo a la purga ───────────────────────────────
-  // Reutiliza la misma lógica de Backup.jsx: en nativo usa Capacitor Filesystem
-  // + Share; en web descarga un JSON directamente.
-  // Se llama automáticamente antes de ejecutar la purga para que el usuario
-  // siempre tenga el histórico completo si lo necesita.
 
   async function exportarBackupPrevio() {
     const json = JSON.stringify(datosRef.current, null, 2)
-    const fecha = new Date().toISOString().slice(0, 10) // "YYYY-MM-DD"
+    const fecha = new Date().toISOString().slice(0, 10)
     const nombre = `finanzas-backup-previo-purga-${fecha}.json`
 
     if (Capacitor.isNativePlatform()) {
-      // Nativo: escribir en el sistema de archivos y compartir
       await Filesystem.writeFile({
         path: nombre,
         data: json,
@@ -221,7 +225,6 @@ export default function Ajustes() {
       const uri = await Filesystem.getUri({ path: nombre, directory: Directory.Cache })
       await Share.share({ title: nombre, url: uri.uri })
     } else {
-      // Web: descarga directa mediante un enlace temporal
       const blob = new Blob([json], { type: "application/json" })
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement("a")
@@ -233,36 +236,21 @@ export default function Ajustes() {
   }
 
   // ── MANTENIMIENTO — Ejecutar purga ─────────────────────────────────────────
-  // Flujo completo:
-  //   1. Exportar backup (siempre, antes de tocar datos)
-  //   2. Llamar purgarDatos() con el año de corte seleccionado + 1
-  //      (ej: si el usuario elige 2024, se purga todo anterior a 2025)
-  //   3. Guardar los datos purgados con actualizarDatos()
-  //   4. Sincronizar con la nube para que el tombstone viaje y el remoto
-  //      quede también limpio
-  //   5. Mostrar cuántos registros se compactaron
 
   async function ejecutarPurga() {
     setEstadoPurga("purgando")
     addLog(`Mantenimiento: iniciando purga del año ${anioPurga}...`)
 
     try {
-      // Paso 1 — Backup automático previo
       addLog("Mantenimiento: exportando backup previo a la purga...")
       await exportarBackupPrevio()
       addLog("Mantenimiento: backup exportado OK", "ok")
 
-      // Paso 2 — Purgar datos
-      // anioPurga + 1 porque purgarDatos recibe el año de corte EXCLUSIVO:
-      // "elimina registros cerrados ANTES de este año"
       const { datosPurgados, totalPurgados } = purgarDatos(datosRef.current, anioPurga + 1)
       addLog(`Mantenimiento: ${totalPurgados} registros compactados`, "ok")
 
-      // Paso 3 — Persistir localmente
       actualizarDatos(datosPurgados)
 
-      // Paso 4 — Sincronizar en la nube para que los tombstones viajen
-      // y el remoto quede limpio también
       if (navigator.onLine) {
         if (tokenGuardadoDropbox()) {
           addLog("Mantenimiento: sincronizando Dropbox tras purga...")
@@ -277,7 +265,6 @@ export default function Ajustes() {
         addLog("Mantenimiento: sin conexión, sync pendiente para la próxima vez", "info")
       }
 
-      // Paso 5 — Mostrar resultado
       setResultadoPurga(totalPurgados)
       setEstadoPurga("ok")
     } catch (e) {
@@ -304,7 +291,7 @@ export default function Ajustes() {
   function TarjetaSync({ titulo, conectado, estado, ultimaSync, onConectar, onDesconectar, onSync }) {
     const texto = textoEstado(estado, ultimaSync)
     return (
-      <div style={estiloTarjeta}>
+      <div style={estiloCard}>
         <h2 style={estiloSubtitulo}>{titulo}</h2>
         {!conectado ? (
           <button onClick={onConectar} style={{ ...estiloBotonPrimario, width: "100%" }}>
@@ -346,15 +333,10 @@ export default function Ajustes() {
   ]
 
   const TEMAS_OPCIONES = [
-    { id: "original",       label: "🌑 Original",        desc: "Oscuro · Púrpura · Tech"       },
-    { id: "pink-white",     label: "🌸 Pink White",      desc: "Claro · Rosado · Suave"        },
-    { id: "pink-dark",      label: "🌺 Pink Dark",       desc: "Oscuro · Rosado · Ciruela"     },
-    { id: "estandar-dark",  label: "🌊 Estándar Dark",   desc: "Oscuro · Azul · Finanzas"      },
-    { id: "estandar-white", label: "☀️ Estándar White",  desc: "Claro · Azul · Profesional"    },
+  { id: "retro-flat",      label: "Claro",  desc: "Gris hueso · Bordes negros" },
+  { id: "retro-flat-dark", label: "Oscuro", desc: "Gris oscuro · Bajo contraste" },
   ]
 
-  // Años disponibles para purgar: desde 3 años atrás hasta el año anterior
-  // (nunca se permite purgar el año en curso, porque puede tener registros activos)
   const aniosDisponibles = Array.from(
     { length: Math.max(1, anioActual - (anioActual - 3)) },
     (_, i) => anioActual - 1 - i
@@ -382,7 +364,7 @@ export default function Ajustes() {
         <div style={{ display: "grid", gap: "24px", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
 
           {/* ── Nivel de seguimiento ── */}
-          <div style={estiloTarjeta}>
+          <div style={estiloCard}>
             <h2 style={estiloSubtitulo}>📊 Nivel de seguimiento</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {NIVELES_OPCIONES.map(({ id, label, items }) => {
@@ -409,7 +391,7 @@ export default function Ajustes() {
           </div>
 
           {/* ── País / Moneda ── */}
-          <div style={estiloTarjeta}>
+          <div style={estiloCard}>
             <h2 style={estiloSubtitulo}>🌍 País y moneda</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
@@ -439,7 +421,7 @@ export default function Ajustes() {
           </div>
 
           {/* ── Tema visual ── */}
-          <div style={estiloTarjeta}>
+          <div style={estiloCard}>
             <h2 style={estiloSubtitulo}>🎨 Tema visual</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {TEMAS_OPCIONES.map(({ id, label, desc }) => {
@@ -493,17 +475,13 @@ export default function Ajustes() {
             onSync={hacerSyncDropbox}
           />
 
-          <div style={estiloTarjeta}>
+          <div style={estiloCard}>
             <h2 style={estiloSubtitulo}>Copia de seguridad local</h2>
             <Backup />
           </div>
 
           {/* ── Mantenimiento ── */}
-          {/* Esta tarjeta permite purgar registros históricos de años anteriores.
-              La purga convierte los registros elegibles en tombstones durante el
-              merge con la nube, y luego los elimina del resultado final.
-              Siempre exporta un backup antes de ejecutar. */}
-          <div style={estiloTarjeta}>
+          <div style={estiloCard}>
             <h2 style={estiloSubtitulo}>🗑️ Mantenimiento</h2>
 
             <p style={{ margin: "0 0 16px", fontSize: "13px", color: COLORES.textoSecundario, lineHeight: "1.5" }}>
@@ -525,7 +503,6 @@ export default function Ajustes() {
                       key={anio}
                       onClick={() => {
                         setAnioPurga(anio)
-                        // Resetear estado si el usuario cambia el año después de una purga
                         if (estadoPurga !== "purgando") {
                           setEstadoPurga("idle")
                           setResultadoPurga(null)
@@ -547,7 +524,7 @@ export default function Ajustes() {
               </div>
             </div>
 
-            {/* Qué se va a purgar — texto informativo */}
+            {/* Qué se va a purgar */}
             <div style={{
               fontSize: "12px",
               color: COLORES.textoMuted,
@@ -591,7 +568,6 @@ export default function Ajustes() {
                 {estadoPurga === "purgando" ? "⏳ Purgando..." : `🗑️ Purgar año ${anioPurga}`}
               </button>
             ) : (
-              // Paso de confirmación — evita ejecuciones accidentales
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 <p style={{ margin: 0, fontSize: "13px", color: COLORES.advertencia, fontWeight: "600", textAlign: "center" }}>
                   ⚠️ Se exportará un backup y se eliminarán los registros. ¿Continuar?
@@ -621,7 +597,7 @@ export default function Ajustes() {
 
         </div>
 
-        <div style={{ ...estiloTarjeta, marginTop: "24px" }}>
+        <div style={{ ...estiloCard, marginTop: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <h2 style={{ ...estiloSubtitulo, margin: 0 }}>🔍 Logs</h2>
             <button onClick={() => setLogMessages([])} style={{ background: "none", border: `1px solid ${COLORES.borde}`, color: COLORES.textoSecundario, fontSize: "12px", padding: "4px 10px", borderRadius: "6px", cursor: "pointer" }}>Limpiar</button>

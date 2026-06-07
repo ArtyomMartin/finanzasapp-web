@@ -1,4 +1,4 @@
-//Consejos.jsx
+//C:docs/FinanzasApp/src/screens/Consejos.jsx
 
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom"; 
@@ -85,19 +85,15 @@ export default function Consejos() {
   const usuarios = datos.config?.usuarios || [];
   const montoFondo = datos.ubicacion?.find(c => c.id === "fondo-emergencia")?.monto || 0;
 
-  // FIX 3: Sumamos TODOS los salarios activos del usuario (no solo el primero)
-  // y TODAS sus variaciones, para reflejar salario fijo + extras correctamente.
   const detalleUsuarios = usuarios.map(u => {
     const salarios = datos.salarios || [];
     const variaciones = datos.variaciones || [];
 
-    // salarioActivoEnMes devuelve un array filtrado; sumamos todos los montos activos
     const salariosMes = salarioActivoEnMes(salarios, u.id, mesSeleccionado, anioSeleccionado);
     const totalSalario = Array.isArray(salariosMes)
       ? salariosMes.reduce((acc, s) => acc + (s.monto || 0), 0)
       : (salariosMes?.monto || 0);
 
-    // variacionActivaEnMes puede devolver array o un objeto; normalizamos igual
     const variacionesMes = variacionActivaEnMes(variaciones, u.id, mesSeleccionado, anioSeleccionado);
     const totalExtra = Array.isArray(variacionesMes)
       ? variacionesMes.reduce((acc, v) => acc + (v.monto || 0), 0)
@@ -129,10 +125,6 @@ export default function Consejos() {
       />
 
       <div style={{ animation: "fadeIn 0.35s ease" }}>
-        {/* FIX 1: título centrado — se añadió justifyContent:"center" al header
-            ya que estiloHeader usa space-between; el título queda en el medio
-            visualmente gracias a que el botón ☰ está fuera del flujo con position
-            o simplemente centramos el h1 con flex:1 y textAlign center */}
         <div style={{ ...estilos.estiloHeader, justifyContent: "center", position: "relative" }}>
           <button
             onClick={() => setMenuAbierto(true)}
@@ -143,8 +135,6 @@ export default function Consejos() {
 
         <div style={{ padding: "0 0 16px" }}>
 
-          {/* FIX 2: se añade padding interno a la tarjeta informativa para que
-              el texto no quede pegado a los bordes */}
           <div style={{ ...estilos.estiloTarjeta, marginBottom: "20px", padding: "14px 16px" }}>
             <p style={{ margin: 0, fontSize: "14px", color: COLORES.textoSecundario, lineHeight: "1.6" }}>
               Una de las estrategias más efectivas para construir estabilidad financiera
@@ -175,15 +165,15 @@ export default function Consejos() {
           <h2 style={{ margin: "0 0 2px 0", fontSize: "17px", fontWeight: "700", color: COLORES.textoBlanco }}>La distribución ideal</h2>
           <p style={{ margin: "0 0 12px 0", fontSize: "12px", color: COLORES.textoMuted }}>Sobre el ingreso bruto total del hogar</p>
 
+          {/* CAMBIO 1 y 2: sin borderLeft, sin badge TIPO_LABELS */}
           {REGLAS.map((r, i) => (
-            <div key={i} style={{ borderRadius: "10px", padding: "12px 14px", marginBottom: "10px", backgroundColor: r.fondo, borderLeft: `4px solid ${r.color}` }}>
+            <div key={i} style={{ borderRadius: "10px", padding: "12px 14px", marginBottom: "10px", backgroundColor: r.fondo }}>
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
                 <span style={{ fontSize: "22px", marginTop: "2px" }}>{r.icono}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
                     <span style={{ fontSize: "20px", fontWeight: "800", color: r.color }}>{r.pct * 100}%</span>
                     <span style={{ fontSize: "15px", fontWeight: "600", color: COLORES.textoBlanco }}>{r.label}</span>
-                    <span style={{ fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", backgroundColor: COLORES.fondoOverlay, borderRadius: "4px", padding: "2px 6px", color: r.color }}>{TIPO_LABELS[r.tipo]}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoSecundario, lineHeight: "1.5" }}>{r.descripcion}</p>
                 </div>
@@ -204,12 +194,9 @@ export default function Consejos() {
             </div>
           ) : (
             <>
-              {/* FIX 2: se añade padding interno a esta tarjeta también */}
               <div style={{ ...estilos.estiloTarjeta, marginBottom: "12px", padding: "14px 16px" }}>
                 <p style={{ margin: "0 0 10px 0", fontSize: "13px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Ingreso bruto del hogar</p>
 
-                {/* FIX 3: mostramos salario + extra por usuario, y si hay 2 usuarios
-                    también mostramos el subtotal de cada uno antes del total global */}
                 {detalleUsuarios.map((u, i) => (
                   <div key={i} style={{ marginBottom: usuarios.length > 1 ? "10px" : "0" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
@@ -224,7 +211,6 @@ export default function Consejos() {
                         </span>
                       </div>
                     )}
-                    {/* Subtotal por usuario (solo si hay 2 usuarios y tiene algo) */}
                     {usuarios.length > 1 && (u.extra !== 0) && (
                       <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "8px" }}>
                         <span style={{ fontSize: "13px", color: COLORES.textoMuted }}>Subtotal {u.nombre}</span>
@@ -240,6 +226,7 @@ export default function Consejos() {
                 </div>
               </div>
 
+              {/* CAMBIO 1: sin borderLeft en los 4 contenedores de situación del usuario */}
               {REGLAS.map((r, i) => {
                 const objetivo = ingresoTotal * r.pct;
                 const real = r.clave ? realesMap[r.clave] : null;
@@ -258,7 +245,7 @@ export default function Consejos() {
                 ];
 
                 return (
-                  <div key={i} style={{ borderRadius: "10px", padding: "12px 14px", marginBottom: "10px", backgroundColor: r.fondo, borderLeft: `4px solid ${r.color}` }}>
+                  <div key={i} style={{ borderRadius: "10px", padding: "12px 14px", marginBottom: "10px", backgroundColor: r.fondo }}>
                     <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
                       <span style={{ fontSize: "20px", marginTop: "2px" }}>{r.icono}</span>
                       <div style={{ flex: 1 }}>

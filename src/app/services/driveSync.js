@@ -1,56 +1,172 @@
-import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth"
+// driveSync.js — Web pura (sin Capacitor)
+// Auth: OAuth2 redirect + renovación silenciosa por iframe (prompt=none)
 
 const FILE_NAME = "finanzas-db.json"
+
+const CLIENT_ID = "588167639813-71hurbr33dvaaanmf0n47uq45olvpc16.apps.googleusercontent.com"
+const SCOPES    = "https://www.googleapis.com/auth/drive.file"
+const REDIRECT_URI = window.location.origin + window.location.pathname
 
 let accessToken = null
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 
-export async function iniciarAuth() {
-  GoogleAuth.initialize({
-    clientId: "588167639813-71hurbr33dvaaanmf0n47uq45olvpc16.apps.googleusercontent.com",
-    scopes: ["profile", "email", "https://www.googleapis.com/auth/drive.file"],
-    grantOfflineAccess: true,
-  })
-
-  const user = await GoogleAuth.signIn()
-  accessToken = user.authentication.accessToken
-
-  const expira = Date.now() + 55 * 60 * 1000
-  localStorage.setItem("drive-token", accessToken)
+function _guardarToken(token, expiresInMs = 55 * 60 * 1000) {
+  accessToken = token
+  const expira = Date.now() + expiresInMs
+  localStorage.setItem("drive-token", token)
   localStorage.setItem("drive-token-expira", expira.toString())
+}
 
-  return accessToken
+/**
+ * Intenta renovar el token silenciosamente usando un iframe oculto con prompt=none.
+ * Google responderá con el token en el hash si la sesión sigue activa.
+ * Si no hay sesión activa, rechaza la promesa para que la UI pida reconectar.
+ */
+function _renovarTokenSilencioso() {
+  return new Promise((resolve, reject) => {
+    const state = crypto.randomUUID()
+    const url = new URL("https://accounts.google.com/o/oauth2/v2/auth")
+    url.searchParams.set("client_id",     CLIENT_ID)
+    url.searchParams.set("redirect_uri",  REDIRECT_URI)
+    url.searchParams.set("response_type", "token")
+    url.searchParams.set("scope",         SCOPES)
+    url.searchParams.set("prompt",        "none")
+    url.searchParams.set("state",         state)
+
+    const iframe = document.createElement("iframe")
+    iframe.style.display = "none"
+    document.body.appendChild(iframe)
+
+    const timer = setTimeout(() => {
+      document.body.removeChild(iframe)
+      reject(new Error("Renovación silenciosa: timeout"))
+    }, 10000)
+
+    iframe.onload = () => {
+      try {
+        const hash = new URLSearchParams(
+          iframe.contentWindow.location.hash.substring(1)
+        )
+        const token = hash.get("access_token")
+        const expiresIn = parseInt(hash.get("expires_in") || "3300") * 1000
+        if (token) {
+          _guardarToken(token, expiresIn)
+          clearTimeout(timer)
+          document.body.removeChild(iframe)
+          resolve(token)
+        } else {
+          throw new Error("Sin token en respuesta iframe")
+        }
+      } catch (e) {
+        clearTimeout(timer)
+        document.body.removeChild(iframe)
+        localStorage.removeItem("drive-token")
+        localStorage.removeItem("drive-token-expira")
+        accessToken = null
+        reject(new Error("Sesión de Google expirada, vuelve a conectar Drive"))
+      }
+    }
+
+    iframe.src = url.toString()
+  })
+}
+
+async function _obtenerTokenValido() {
+  const expira = parseInt(localStorage.getItem("drive-token-expira") || "0")
+  const margen = 3 * 60 * 1000
+
+  if (accessToken && Date.now() < expira - margen) {
+    return accessToken
+  }
+
+  return await _renovarTokenSilencioso()
+}
+
+/**
+ * Inicia el flujo OAuth redirect.
+ * Guarda un flag en sessionStorage para que al volver
+ * Ajustes.jsx llame a manejarCallbackDrive() y haga sync.
+ */
+export function iniciarAuth() {
+  const state = crypto.randomUUID()
+  sessionStorage.setItem("drive-oauth-state", state)
+  sessionStorage.setItem("drive-oauth-pending", "1")
+
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth")
+  url.searchParams.set("client_id",     CLIENT_ID)
+  url.searchParams.set("redirect_uri",  REDIRECT_URI)
+  url.searchParams.set("response_type", "token")
+  url.searchParams.set("scope",         SCOPES)
+  url.searchParams.set("prompt",        "consent")
+  url.searchParams.set("state",         state)
+
+  window.location.href = url.toString()
+}
+
+/**
+ * Llámalo al montar Ajustes si hay hash en la URL (vuelta del redirect).
+ * Devuelve true si procesó un token, false si no había nada que procesar.
+ */
+export function manejarCallbackDrive() {
+  const hash = new URLSearchParams(window.location.hash.substring(1))
+  const token = hash.get("access_token")
+  const state = hash.get("state")
+  const savedState = sessionStorage.getItem("drive-oauth-state")
+
+  if (!token) return false
+  if (state !== savedState) return false // CSRF check
+
+  const expiresIn = parseInt(hash.get("expires_in") || "3300") * 1000
+  _guardarToken(token, expiresIn)
+  sessionStorage.removeItem("drive-oauth-state")
+  sessionStorage.removeItem("drive-oauth-pending")
+
+  // Limpiar el hash de la URL sin recargar
+  history.replaceState(null, "", window.location.pathname + window.location.search)
+
+  return true
 }
 
 export function tokenGuardado() {
   const t = localStorage.getItem("drive-token")
-  const expira = parseInt(localStorage.getItem("drive-token-expira") || "0")
-  if (t && Date.now() < expira) {
+  if (t) {
     accessToken = t
     return true
   }
-  localStorage.removeItem("drive-token")
-  localStorage.removeItem("drive-token-expira")
   return false
 }
 
-export async function cerrarSesion() {
+/**
+ * Renueva el token silenciosamente al arrancar.
+ * Devuelve true si la sesión sigue activa, false si hay que re-login manual.
+ */
+export async function renovarSesionDrive() {
+  if (!localStorage.getItem("drive-token")) return false
   try {
-    await GoogleAuth.signOut()
-  } catch (_) {}
+    await _renovarTokenSilencioso()
+    return true
+  } catch (_) {
+    return false
+  }
+}
+
+export function cerrarSesion() {
   accessToken = null
   localStorage.removeItem("drive-token")
   localStorage.removeItem("drive-token-expira")
+  sessionStorage.removeItem("drive-oauth-state")
+  sessionStorage.removeItem("drive-oauth-pending")
 }
 
 // ── DRIVE API ─────────────────────────────────────────────────────────────────
 
 async function buscarArchivo() {
+  const token = await _obtenerTokenValido()
   const query = encodeURIComponent(`name='${FILE_NAME}' and trashed=false`)
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)&spaces=drive`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    { headers: { Authorization: `Bearer ${token}` } }
   )
   if (!res.ok) {
     const err = await res.json()
@@ -60,23 +176,9 @@ async function buscarArchivo() {
   return data.files?.[0]?.id ?? null
 }
 
-async function descargarDB() {
-  const fileId = await buscarArchivo()
-  if (!fileId) return null
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  )
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Drive descargarDB error ${res.status}: ${err}`)
-  }
-  return await res.json()
-}
-
-async function subirDB(datos) {
+async function subirDB(datos, fileId) {
+  const token = await _obtenerTokenValido()
   const body = JSON.stringify(datos)
-  const fileId = await buscarArchivo()
 
   if (fileId) {
     const res = await fetch(
@@ -84,7 +186,7 @@ async function subirDB(datos) {
       {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body,
@@ -107,7 +209,7 @@ async function subirDB(datos) {
       "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: form,
       }
     )
@@ -120,23 +222,6 @@ async function subirDB(datos) {
 
 // ── MERGE ─────────────────────────────────────────────────────────────────────
 
-/**
- * Determina si un objeto es un tombstone de purga.
- *
- * Un tombstone es el rastro mínimo que deja purgarDatos() cuando elimina
- * un registro definitivamente. Tiene exactamente 3 campos:
- *   { id, eliminado: true, actualizadoEn }
- *
- * Su propósito es que durante el merge, si el remoto todavía tiene el
- * registro completo (porque aún no fue purgado en ese dispositivo),
- * el merge sepa que NO debe restituirlo — debe eliminarlo también.
- *
- * Una vez resuelto el conflicto, el tombstone se descarta del resultado
- * final, por lo que ni local ni remoto quedan con basura.
- *
- * IMPORTANTE: no confundir con eliminado:true normal (soft delete), que
- * sí conserva todos los campos del registro. El tombstone tiene SOLO 3 campos.
- */
 function _esTombstone(item) {
   return (
     item.eliminado === true &&
@@ -146,23 +231,6 @@ function _esTombstone(item) {
   )
 }
 
-/**
- * Fusiona los datos locales con los remotos (Drive o Dropbox).
- *
- * Reglas por registro:
- *  1. Existe solo en local → se queda (puede ser tombstone o registro normal)
- *  2. Existe solo en remoto:
- *     - Si es tombstone → se descarta (fue purgado localmente, no restituir)
- *     - Si es registro normal → se agrega al resultado
- *  3. Existe en ambos → gana el que tenga actualizadoEn más reciente,
- *     sea tombstone o no (si el más nuevo es tombstone, el registro muere)
- *
- *  Al final, todos los tombstones se eliminan del resultado:
- *  ya cumplieron su función de resolver conflictos y no deben persistir.
- *
- * Para agregar una colección nueva al merge, simplemente añadirla al
- * array `colecciones` — no requiere ningún otro cambio.
- */
 export function mergeDatos(local, remoto) {
   const resultado = { ...local }
 
@@ -176,7 +244,6 @@ export function mergeDatos(local, remoto) {
     const localArr  = local[col]  || []
     const remotoArr = remoto[col] || []
 
-    // Construimos un mapa id → item empezando por los locales
     const mapa = {}
     for (const item of localArr) {
       mapa[item.id] = item
@@ -186,19 +253,10 @@ export function mergeDatos(local, remoto) {
       const itemLocal = mapa[itemRemoto.id]
 
       if (!itemLocal) {
-        // El remoto tiene un registro que local no tiene.
-        // Si es tombstone significa que fue purgado en otro dispositivo
-        // y ya llegó al remoto — no lo restituimos.
-        // Si es un registro normal, lo agregamos normalmente.
         if (!_esTombstone(itemRemoto)) {
           mapa[itemRemoto.id] = itemRemoto
         }
-        // Si es tombstone: simplemente no se agrega — desaparece.
       } else {
-        // Ambos tienen el registro: gana el más reciente.
-        // Esto cubre el caso en que uno es tombstone y el otro no:
-        // si el tombstone es más nuevo, el registro muere; si el
-        // registro normal es más nuevo, el tombstone se ignora.
         const fechaLocal  = new Date(itemLocal.actualizadoEn  || 0)
         const fechaRemota = new Date(itemRemoto.actualizadoEn || 0)
         if (fechaRemota > fechaLocal) {
@@ -207,12 +265,9 @@ export function mergeDatos(local, remoto) {
       }
     }
 
-    // Convertimos el mapa a array y descartamos tombstones del resultado final.
-    // Los tombstones ya resolvieron su conflicto — no deben quedar en la DB.
     resultado[col] = Object.values(mapa).filter(item => !_esTombstone(item))
   }
 
-  // El config también se mergea por fecha, igual que antes
   if (remoto.config?.actualizadoEn) {
     const fechaLocal  = new Date(local.config?.actualizadoEn  || 0)
     const fechaRemota = new Date(remoto.config.actualizadoEn)
@@ -225,10 +280,24 @@ export function mergeDatos(local, remoto) {
 // ── SYNC COMPLETO ─────────────────────────────────────────────────────────────
 
 export async function sincronizar(datosLocales, actualizarDatos) {
-  if (!accessToken) throw new Error("No autenticado")
-  const remoto = await descargarDB()
+  const fileId = await buscarArchivo()
+  const token  = await _obtenerTokenValido()
+
+  let remoto = null
+  if (fileId) {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Drive descargarDB error ${res.status}: ${err}`)
+    }
+    remoto = await res.json()
+  }
+
   const fusionado = remoto ? mergeDatos(datosLocales, remoto) : datosLocales
-  await subirDB(fusionado)
+  await subirDB(fusionado, fileId)
   actualizarDatos(fusionado)
   return fusionado
 }
