@@ -6,11 +6,11 @@ import { useDatos } from "../context/AppContext"
 import DrawerMenu from "../components/DrawerMenu"
 import { calcularIngresoCompartidoTotal, egresosActivosEnMes, montoEgresoMes } from "../services/calculos"
 import { COLORES, estiloPantalla, estiloHeader, estiloTitulo, estiloTarjeta, estiloBotonPrimario, estiloBotonSecundario, estiloBotonIcono, estiloLabel, estiloInput, estiloWizardBox } from "../theme"
+import { ArrowLeft, ArrowRight, Lightbulb, CheckCircle2, Shield, Pencil, X, Check, Save, PartyPopper } from "lucide-react"
 
 export default function FondoEmergencia() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
   const { datos, actualizarDatos, fmt } = useDatos()
 
   const fondo = datos.fondoEmergencia || {}
@@ -73,6 +73,7 @@ export default function FondoEmergencia() {
         mesesObjetivo: wizMeses,
         mesInicio: mes,
         anioInicio: anio,
+        actualizadoEn: ahora,
       },
       ubicacion: nuevaUbicacion,
     })
@@ -82,8 +83,9 @@ export default function FondoEmergencia() {
   function guardarSaldo() {
     const v = parseFloat(nuevoSaldo)
     if (isNaN(v) || v < 0) return alert("Valor inválido")
+    const ahora = new Date().toISOString()
     const nuevaUbicacion = ubicacion.map(c =>
-      c.id === "fondo-emergencia" ? { ...c, monto: v } : c
+      c.id === "fondo-emergencia" ? { ...c, monto: v, actualizadoEn: ahora } : c
     )
     actualizarDatos({ ...datos, ubicacion: nuevaUbicacion })
     setEditandoSaldo(false)
@@ -101,6 +103,7 @@ export default function FondoEmergencia() {
         tipo: editTipo,
         valor: valor,
         mesesObjetivo: editMeses,
+        actualizadoEn: new Date().toISOString(),
       }
     })
     setEditandoConfig(false)
@@ -110,18 +113,17 @@ export default function FondoEmergencia() {
     if (!window.confirm("¿Desactivar el fondo de emergencia? El saldo acumulado se conserva en Ubi Plata.")) return
     actualizarDatos({
       ...datos,
-      fondoEmergencia: { ...fondo, activo: false }
+      fondoEmergencia: { ...fondo, activo: false, actualizadoEn: new Date().toISOString() }
     })
   }
 
   if (paso === 1) {
     return (
       <div style={estiloPantalla}>
-        <DrawerMenu abierto={menuAbierto} setAbierto={setMenuAbierto} rutaActual={location.pathname} alNavegar={navigate} />
+        <DrawerMenu rutaActual={location.pathname} alNavegar={navigate} />
         <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
           <div style={estiloHeader}>
-            <button onClick={() => setMenuAbierto(true)} style={{ ...estiloBotonIcono, fontSize: "24px", marginRight: "10px" }}>☰</button>
-            <button onClick={() => setPaso(0)} style={estiloBotonIcono}>← Volver</button>
+            <button onClick={() => setPaso(0)} style={{ ...estiloBotonIcono, display: "flex", alignItems: "center", gap: "6px" }}><ArrowLeft size={16} /> Volver</button>
             <h1 style={estiloTitulo}>Fondo de emergencia</h1>
           </div>
 
@@ -155,12 +157,12 @@ export default function FondoEmergencia() {
               </div>
             )}
             {egresosMesSiguiente === 0 && (
-              <p style={{ color: COLORES.textoMuted, fontSize: "13px", marginTop: "12px" }}>
-                💡 No hay egresos registrados el mes próximo, el objetivo se calculará cuando los agregues.
+              <p style={{ color: COLORES.textoMuted, fontSize: "13px", marginTop: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Lightbulb size={14} /> No hay egresos registrados el mes próximo, el objetivo se calculará cuando los agregues.
               </p>
             )}
 
-            <button onClick={() => setPaso(2)} style={estiloBotonPrimario}>Siguiente →</button>
+            <button onClick={() => setPaso(2)} style={{ ...estiloBotonPrimario, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>Siguiente <ArrowRight size={16} /></button>
           </div>
         </div>
       </div>
@@ -170,11 +172,10 @@ export default function FondoEmergencia() {
   if (paso === 2) {
     return (
       <div style={estiloPantalla}>
-        <DrawerMenu abierto={menuAbierto} setAbierto={setMenuAbierto} rutaActual={location.pathname} alNavegar={navigate} />
+        <DrawerMenu rutaActual={location.pathname} alNavegar={navigate} />
         <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
           <div style={estiloHeader}>
-            <button onClick={() => setMenuAbierto(true)} style={{ ...estiloBotonIcono, fontSize: "24px", marginRight: "10px" }}>☰</button>
-            <button onClick={() => setPaso(1)} style={estiloBotonIcono}>← Volver</button>
+            <button onClick={() => setPaso(1)} style={{ ...estiloBotonIcono, display: "flex", alignItems: "center", gap: "6px" }}><ArrowLeft size={16} /> Volver</button>
             <h1 style={estiloTitulo}>Fondo de emergencia</h1>
           </div>
 
@@ -218,7 +219,7 @@ export default function FondoEmergencia() {
               </div>
             )}
 
-            <button onClick={activarFondo} style={{...estiloBotonPrimario, marginTop: "16px"}}>✅ Activar fondo</button>
+            <button onClick={activarFondo} style={{...estiloBotonPrimario, marginTop: "16px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"}}><CheckCircle2 size={16} /> Activar fondo</button>
           </div>
         </div>
       </div>
@@ -227,23 +228,22 @@ export default function FondoEmergencia() {
 
   return (
     <div style={estiloPantalla}>
-      <DrawerMenu abierto={menuAbierto} setAbierto={setMenuAbierto} rutaActual={location.pathname} alNavegar={navigate} />
+      <DrawerMenu rutaActual={location.pathname} alNavegar={navigate} />
 
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ ...estiloBotonIcono, fontSize: "24px", marginRight: "10px" }}>☰</button>
-          <h1 style={estiloTitulo}>🛡️ Fondo de emergencia</h1>
+          <h1 style={{ ...estiloTitulo, display: "flex", alignItems: "center", gap: "8px" }}><Shield size={20} /> Fondo de emergencia</h1>
         </div>
 
         {!activo ? (
           <div style={{ background: COLORES.fondoTarjeta, border: `1px solid ${COLORES.advertencia}`, borderRadius: "16px", padding: "28px 20px", textAlign: "center", marginBottom: "16px" }}>
-            <div style={{ fontSize: "48px", marginBottom: "12px" }}>🛡️</div>
+            <Shield size={48} color={COLORES.advertencia} style={{ marginBottom: "12px" }} />
             <h2 style={{ margin: "0 0 8px", fontSize: "20px", color: COLORES.textoBlanco }}>¿Tienes fondo de emergencia?</h2>
             <p style={{ margin: "0 0 20px", fontSize: "14px", color: COLORES.textoMuted, lineHeight: "1.6" }}>
               Un fondo de emergencia te protege ante imprevistos sin endeudarte.
               Lo ideal es tener entre 3 y 7 meses de tus gastos fijos ahorrados.
             </p>
-            <button onClick={() => setPaso(1)} style={estiloBotonPrimario}>Empezar a construirlo →</button>
+            <button onClick={() => setPaso(1)} style={{ ...estiloBotonPrimario, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>Empezar a construirlo <ArrowRight size={16} /></button>
           </div>
         ) : (
           <>
@@ -257,11 +257,11 @@ export default function FondoEmergencia() {
                     {!editandoSaldo && (
                       <button
                         onClick={() => { setEditandoSaldo(true); setNuevoSaldo(montoActual.toString()) }}
-                        style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "13px", cursor: "pointer", padding: 0 }}
-                      >✏️ Editar</button>
+                        style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "13px", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: "4px" }}
+                      ><Pencil size={13} /> Editar</button>
                     )}
                   </div>
-                  
+
                   {editandoSaldo ? (
                     <div style={{ marginTop: "12px", display: "flex", gap: "8px", alignItems: "center" }}>
                       <input
@@ -272,7 +272,7 @@ export default function FondoEmergencia() {
                         autoFocus
                       />
                       <button onClick={guardarSaldo} style={{ ...estiloBotonPrimario, margin: 0, padding: "12px 16px", width: "auto", flexShrink: 0 }}>Guardar</button>
-                      <button onClick={() => setEditandoSaldo(false)} style={{ ...estiloBotonSecundario, margin: 0, padding: "12px 16px", width: "auto", flexShrink: 0 }}>✕</button>
+                      <button onClick={() => setEditandoSaldo(false)} style={{ ...estiloBotonSecundario, margin: 0, padding: "12px 16px", width: "auto", flexShrink: 0, display: "flex" }}><X size={16} /></button>
                     </div>
                   ) : (
                     <>
@@ -284,8 +284,8 @@ export default function FondoEmergencia() {
                           Objetivo ({fondo.mesesObjetivo} meses): <strong style={{color: COLORES.textoBlanco}}>{fmt(objetivo)}</strong>
                         </p>
                         {cubierto && (
-                          <span style={{ background: COLORES.fondoPanel, color: COLORES.positivo, border: `1px solid ${COLORES.positivo}`, borderRadius: "8px", padding: "2px 8px", fontSize: "11px", fontWeight: "700" }}>
-                            ✓ Cubierto
+                          <span style={{ background: COLORES.fondoPanel, color: COLORES.positivo, border: `1px solid ${COLORES.positivo}`, borderRadius: "8px", padding: "2px 8px", fontSize: "11px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <Check size={12} /> Cubierto
                           </span>
                         )}
                       </div>
@@ -317,8 +317,8 @@ export default function FondoEmergencia() {
                     </p>
                     <button
                       onClick={() => { setEditandoConfig(true); setEditTipo(fondo.tipo); setEditValor(fondo.valor); setEditMeses(fondo.mesesObjetivo) }}
-                      style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "13px", cursor: "pointer", padding: 0 }}
-                    >✏️ Editar</button>
+                      style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "13px", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: "4px" }}
+                    ><Pencil size={13} /> Editar</button>
                   </div>
 
                   <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
@@ -342,19 +342,20 @@ export default function FondoEmergencia() {
 
                   {!cubierto && objetivo > 0 && aporteMensual > 0 && (
                     <div style={{ marginTop: "12px", padding: "10px 12px", background: COLORES.primarioSuave, borderRadius: "8px", borderLeft: `3px solid ${COLORES.primario}` }}>
-                      <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoSecundario }}>
-                        💡 A este ritmo alcanzarás el objetivo en aproximadamente{" "}
+                      <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoSecundario, display: "flex", alignItems: "flex-start", gap: "6px" }}>
+                        <Lightbulb size={14} style={{ flexShrink: 0, marginTop: "2px" }} />
+                        <span>A este ritmo alcanzarás el objetivo en aproximadamente{" "}
                         <strong style={{ color: COLORES.primario }}>
                           {Math.ceil(Math.max(0, objetivo - montoActual) / aporteMensual)} meses
-                        </strong>
+                        </strong></span>
                       </p>
                     </div>
                   )}
 
                   {cubierto && (
                     <div style={{ marginTop: "12px", padding: "10px 12px", background: COLORES.fondoPanel, borderRadius: "8px", borderLeft: `3px solid ${COLORES.positivo}` }}>
-                      <p style={{ margin: 0, fontSize: "13px", color: COLORES.positivo }}>
-                        🎉 ¡Fondo cubierto! Puedes redirigir este aporte a inversiones u otros objetivos.
+                      <p style={{ margin: 0, fontSize: "13px", color: COLORES.positivo, display: "flex", alignItems: "center", gap: "6px" }}>
+                        <PartyPopper size={14} /> ¡Fondo cubierto! Puedes redirigir este aporte a inversiones u otros objetivos.
                       </p>
                     </div>
                   )}
@@ -412,7 +413,7 @@ export default function FondoEmergencia() {
                   />
 
                   <div style={{ display: "flex", gap: "8px" }}>
-                    <button onClick={guardarConfig} style={estiloBotonPrimario}>💾 Guardar</button>
+                    <button onClick={guardarConfig} style={{ ...estiloBotonPrimario, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}><Save size={16} /> Guardar</button>
                     <button onClick={() => setEditandoConfig(false)} style={estiloBotonSecundario}>Cancelar</button>
                   </div>
                 </>

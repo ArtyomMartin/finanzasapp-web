@@ -1,3 +1,5 @@
+//C:documentos/Proyectos/FinanzasApp/src/pantallas/Cuotas.jsx
+
 import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useDatos } from "../context/AppContext"
@@ -10,7 +12,6 @@ const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto"
 export default function Cuotas() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
   const { datos, actualizarDatos, usuarioActivo, fmt } = useDatos()
   const hoy = new Date()
   const [mes, setMes] = useState(hoy.getMonth() + 1)
@@ -50,15 +51,12 @@ export default function Cuotas() {
   return (
     <div style={estiloPantalla}>
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ background: "none", border: "none", fontSize: "24px", marginRight: "10px", cursor: "pointer", color: COLORES.primario }}>☰</button>
           <h1 style={estiloTitulo}>Cuotas</h1>
         </div>
 

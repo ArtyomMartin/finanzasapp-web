@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import { useDatos } from "../context/AppContext";
 import DrawerMenu from "../components/DrawerMenu";
-import { calcularIngresoCompartidoTotal, egresosActivosEnMes, inversionesActivasEnMes, salarioActivoEnMes, variacionActivaEnMes } from "../services/calculos";
+import { calcularIngresoCompartidoTotal, egresosActivosEnMes, inversionesActivasEnMes, salarioActivoEnMes, variacionActivaEnMes, montoEgresoMes } from "../services/calculos";
 import { NOMBRES_MESES } from "../services/formateo";
 import { COLORES, estilos } from "../theme";
+import { Home, TrendingUp, Shield, Sparkles, Lightbulb, Check, AlertTriangle, MessageCircle } from "lucide-react";
 
 const REGLAS = [
   {
@@ -16,7 +17,7 @@ const REGLAS = [
     tipo: "maximo",
     color: COLORES.peligro,
     fondo: COLORES.fondoTarjeta,
-    icono: "🏠",
+    icono: <Home size={22} />,
     clave: "egresos",
   },
   {
@@ -26,7 +27,7 @@ const REGLAS = [
     tipo: "minimo",
     color: COLORES.positivo,
     fondo: COLORES.fondoTarjeta,
-    icono: "📈",
+    icono: <TrendingUp size={22} />,
     clave: "inversiones",
   },
   {
@@ -36,7 +37,7 @@ const REGLAS = [
     tipo: "hasta_cubrir",
     color: COLORES.advertencia,
     fondo: COLORES.fondoTarjeta,
-    icono: "🛡️",
+    icono: <Shield size={22} />,
     clave: null,
   },
   {
@@ -46,7 +47,7 @@ const REGLAS = [
     tipo: "referencia",
     color: COLORES.primario,
     fondo: COLORES.fondoTarjeta,
-    icono: "✨",
+    icono: <Sparkles size={22} />,
     clave: null,
   },
 ];
@@ -61,7 +62,6 @@ const TIPO_LABELS = {
 export default function Consejos() {
   const navigate = useNavigate();
   const location = useLocation(); 
-  const [menuAbierto, setMenuAbierto] = useState(false); 
   const { datos, fmt } = useDatos();
 
   const hoy = new Date();
@@ -79,7 +79,7 @@ export default function Consejos() {
   }
 
   const ingresoTotal = calcularIngresoCompartidoTotal(datos, mesSeleccionado, anioSeleccionado);
-  const egresosTotales = egresosActivosEnMes(datos.egresos || [], mesSeleccionado, anioSeleccionado).reduce((acc, e) => acc + e.monto, 0);
+  const egresosTotales = egresosActivosEnMes(datos.egresos || [], mesSeleccionado, anioSeleccionado).reduce((acc, e) => acc + montoEgresoMes(e, anioSeleccionado, mesSeleccionado), 0);
   const inversionesTotales = inversionesActivasEnMes(datos.inversiones || [], mesSeleccionado, anioSeleccionado).reduce((acc, e) => acc + e.monto, 0);
   
   const usuarios = datos.config?.usuarios || [];
@@ -118,19 +118,13 @@ export default function Consejos() {
     <div style={estilos.estiloPantalla}>
 
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeIn 0.35s ease" }}>
         <div style={{ ...estilos.estiloHeader, justifyContent: "center", position: "relative" }}>
-          <button
-            onClick={() => setMenuAbierto(true)}
-            style={{ ...estilos.estiloBotonIcono, fontSize: "24px", position: "absolute", left: "35px" }}
-          >☰</button>
-          <h1 style={{ ...estilos.estiloTitulo, marginBottom: 0 }}>💡 Aprende</h1>
+          <h1 style={{ ...estilos.estiloTitulo, marginBottom: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}><Lightbulb size={20} /> Aprende</h1>
         </div>
 
         <div style={{ padding: "0 0 16px" }}>
@@ -169,7 +163,7 @@ export default function Consejos() {
           {REGLAS.map((r, i) => (
             <div key={i} style={{ borderRadius: "10px", padding: "12px 14px", marginBottom: "10px", backgroundColor: r.fondo }}>
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                <span style={{ fontSize: "22px", marginTop: "2px" }}>{r.icono}</span>
+                <span style={{ marginTop: "2px", display: "flex" }}>{r.icono}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
                     <span style={{ fontSize: "20px", fontWeight: "800", color: r.color }}>{r.pct * 100}%</span>
@@ -247,7 +241,7 @@ export default function Consejos() {
                 return (
                   <div key={i} style={{ borderRadius: "10px", padding: "12px 14px", marginBottom: "10px", backgroundColor: r.fondo }}>
                     <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                      <span style={{ fontSize: "20px", marginTop: "2px" }}>{r.icono}</span>
+                      <span style={{ marginTop: "2px", display: "flex" }}>{r.icono}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", flexWrap: "wrap", gap: "4px" }}>
                           <span style={{ fontSize: "15px", fontWeight: "600", color: COLORES.textoBlanco }}>{r.label}</span>
@@ -259,9 +253,9 @@ export default function Consejos() {
                         {r.clave === "egresos" && real !== null && (
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px", flexWrap: "wrap", gap: "4px" }}>
                             <span style={{ fontSize: "13px", color: COLORES.textoSecundario }}>Tus egresos registrados:</span>
-                            <span style={{ color: estado === "ok" ? COLORES.positivo : COLORES.negativo, fontWeight: "600" }}>
+                            <span style={{ color: estado === "ok" ? COLORES.positivo : COLORES.negativo, fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                               {fmt(real)}
-                              {estado === "ok" ? " ✓" : " ⚠️ excede el límite"}
+                              {estado === "ok" ? <Check size={14} /> : <><AlertTriangle size={14} /> excede el límite</>}
                             </span>
                           </div>
                         )}
@@ -269,9 +263,9 @@ export default function Consejos() {
                         {r.clave === "inversiones" && real !== null && (
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px", flexWrap: "wrap", gap: "4px" }}>
                             <span style={{ fontSize: "13px", color: COLORES.textoSecundario }}>Tus inversiones planificadas:</span>
-                            <span style={{ color: estado === "ok" ? COLORES.positivo : COLORES.advertencia, fontWeight: "600" }}>
+                            <span style={{ color: estado === "ok" ? COLORES.positivo : COLORES.advertencia, fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                               {fmt(real)}
-                              {estado === "ok" ? " ✓" : " ⚠️ por debajo del objetivo"}
+                              {estado === "ok" ? <Check size={14} /> : <><AlertTriangle size={14} /> por debajo del objetivo</>}
                             </span>
                           </div>
                         )}
@@ -286,8 +280,8 @@ export default function Consejos() {
                                 {metasFondo.map((m, idx) => (
                                   <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
                                     <span style={{ color: COLORES.textoMuted }}>{m.label}</span>
-                                    <span style={{ fontWeight: "600", color: montoFondo >= m.monto ? COLORES.positivo : COLORES.textoBlanco }}>
-                                      {fmt(m.monto)}{montoFondo >= m.monto && " ✓"}
+                                    <span style={{ fontWeight: "600", color: montoFondo >= m.monto ? COLORES.positivo : COLORES.textoBlanco, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                      {fmt(m.monto)}{montoFondo >= m.monto && <Check size={13} />}
                                     </span>
                                   </div>
                                 ))}
@@ -302,9 +296,10 @@ export default function Consejos() {
               })}
 
               <div style={{ backgroundColor: COLORES.fondoFondo, borderRadius: "12px", padding: "14px", marginTop: "16px", border: `1px solid ${COLORES.borde}` }}>
-                <p style={{ margin: 0, fontSize: "14px", color: COLORES.textoSecundario, lineHeight: "1.6" }}>
-                  💬 <strong>Tip:</strong> Estas cifras son un punto de partida, no reglas rígidas.
-                  Lo importante es que cada mes tengas más claridad sobre a dónde va tu dinero.
+                <p style={{ margin: 0, fontSize: "14px", color: COLORES.textoSecundario, lineHeight: "1.6", display: "flex", gap: "8px" }}>
+                  <MessageCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
+                  <span><strong>Tip:</strong> Estas cifras son un punto de partida, no reglas rígidas.
+                  Lo importante es que cada mes tengas más claridad sobre a dónde va tu dinero.</span>
                 </p>
               </div>
             </>

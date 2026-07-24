@@ -3,12 +3,11 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { useDatos } from "../context/AppContext"
 import DrawerMenu from "../components/DrawerMenu"
 import { COLORES, estilos } from "../theme" // Importación centralizada del tema
+import { Shield, Check, X, Pencil, Save } from "lucide-react"
 
 export default function UbiPlata() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
-  
   // Extraemos también fmt del contexto
   const { datos, actualizarDatos, fmt } = useDatos()
 
@@ -69,15 +68,12 @@ export default function UbiPlata() {
   return (
     <div style={estilos.estiloPantalla}>
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estilos.estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ ...estilos.estiloBotonIcono, fontSize: "24px", marginRight: "10px" }}>☰</button>
           <h1 style={estilos.estiloTitulo}>Ubicacion del dinero</h1>
         </div>
 
@@ -102,7 +98,7 @@ export default function UbiPlata() {
                       <tr style={{ background: "rgba(58,53,31,0.35)" }}>
                         <td style={estilos.estiloTd}>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span>🛡️ {entradaFondo.nombre}</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}><Shield size={14} /> {entradaFondo.nombre}</span>
                             <span style={{ fontSize: "10px", color: COLORES.advertencia, background: "rgba(255,217,61,0.12)", border: "1px solid rgba(255,217,61,0.3)", borderRadius: "4px", padding: "1px 6px" }}>
                               protegido
                             </span>
@@ -118,8 +114,8 @@ export default function UbiPlata() {
                                 style={{ ...estilos.estiloInput, flex: "0 0 110px", textAlign: "right", padding: "6px" }}
                                 autoFocus
                               />
-                              <button onClick={guardarMontoFondo} style={{ color: COLORES.exito, background: "none", border: "none", fontSize: "16px", cursor: "pointer" }}>✓</button>
-                              <button onClick={() => setEditandoFondo(false)} style={{ color: COLORES.peligro, background: "none", border: "none", fontSize: "16px", cursor: "pointer" }}>✕</button>
+                              <button onClick={guardarMontoFondo} style={{ color: COLORES.exito, background: "none", border: "none", cursor: "pointer", display: "flex" }}><Check size={16} /></button>
+                              <button onClick={() => setEditandoFondo(false)} style={{ color: COLORES.peligro, background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={16} /></button>
                             </div>
                           ) : (
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
@@ -128,8 +124,8 @@ export default function UbiPlata() {
                               </span>
                               <button
                                 onClick={() => { setEditandoFondo(true); setNuevoMontoFondo(entradaFondo.monto?.toString() || "0") }}
-                                style={{ color: COLORES.primario, background: "none", border: "none", fontSize: "13px", cursor: "pointer" }}
-                              >✏️</button>
+                                style={{ color: COLORES.primario, background: "none", border: "none", cursor: "pointer", display: "flex" }}
+                              ><Pencil size={13} /></button>
                             </div>
                           )}
                         </td>
@@ -146,7 +142,7 @@ export default function UbiPlata() {
                 </table>
               </div>
             )}
-            <button onClick={abrirEditor} style={{ ...estilos.estiloBotonSecundario, marginTop: "8px" }}>✏️ Editar</button>
+            <button onClick={abrirEditor} style={{ ...estilos.estiloBotonSecundario, marginTop: "8px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}><Pencil size={14} /> Editar</button>
           </>
         ) : (
           <>
@@ -162,19 +158,20 @@ export default function UbiPlata() {
                   onChange={e => cambiarCampo(c.id, "monto", e.target.value)}
                   style={{ ...estilos.estiloInput, flex: "0 0 100px" }}
                 />
-                <button onClick={() => eliminarCampo(c.id)} style={{ color: COLORES.peligro, background: "none", border: "none", fontSize: "18px", cursor: "pointer" }}>✕</button>
+                <button onClick={() => eliminarCampo(c.id)} style={{ color: COLORES.peligro, background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} /></button>
               </div>
             ))}
 
             {entradaFondo && (
-              <div style={{ padding: "10px 12px", background: "rgba(58,53,31,0.40)", borderRadius: "8px", border: "1px solid rgba(255,217,61,0.2)", marginBottom: "12px", fontSize: "13px", color: COLORES.textoMuted }}>
-                🛡️ <strong style={{ color: COLORES.advertencia }}>Fondo de emergencia</strong> — se edita directamente en la tabla o desde la pantalla Fondo de emergencia.
+              <div style={{ padding: "10px 12px", background: "rgba(58,53,31,0.40)", borderRadius: "8px", border: "1px solid rgba(255,217,61,0.2)", marginBottom: "12px", fontSize: "13px", color: COLORES.textoMuted, display: "flex", alignItems: "flex-start", gap: "6px" }}>
+                <Shield size={14} style={{ flexShrink: 0, marginTop: "2px" }} />
+                <span><strong style={{ color: COLORES.advertencia }}>Fondo de emergencia</strong> — se edita directamente en la tabla o desde la pantalla Fondo de emergencia.</span>
               </div>
             )}
 
             <button onClick={añadirCampo} style={{ ...estilos.estiloBotonSecundario, marginBottom: "16px", display: "block" }}>+ Añadir campo</button>
             <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
-              <button onClick={guardar} style={estilos.estiloBotonPrimario}>💾 Guardar</button>
+              <button onClick={guardar} style={{ ...estilos.estiloBotonPrimario, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}><Save size={16} /> Guardar</button>
               <button onClick={cerrarEditor} style={estilos.estiloBotonSecundario}>Cancelar</button>
             </div>
           </>

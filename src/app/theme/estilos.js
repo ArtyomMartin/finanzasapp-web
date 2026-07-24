@@ -17,7 +17,7 @@ export const estiloPantalla = {
   overflowX: "hidden",
   maxWidth: "900px",
   margin: "0 auto",
-  padding: "0 16px",
+  padding: "0 16px 96px",
   width: "100%",
   position: "relative",
 }
@@ -84,7 +84,7 @@ export const estiloBotonPrimario = {
   borderRadius: "12px",
   border: `1px solid ${COLORES.borde}`,
   backgroundColor: COLORES.primario,
-  color: COLORES.fondoApp,
+  color: COLORES.textoBoton,
   cursor: "pointer",
   transition: "box-shadow 0.15s ease, transform 0.15s ease",
 }

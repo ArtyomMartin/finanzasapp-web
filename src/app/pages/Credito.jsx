@@ -1,4 +1,4 @@
-// Credito.jsx
+// C:documentos/finanzas-personales/src/pantallas/Credito.jsx
 
 import { useState } from "react"
 import { createPortal } from "react-dom"
@@ -9,6 +9,7 @@ import WizardModal from "../components/WizardModal"
 import { COLORES, estilos } from "../theme"
 import { NOMBRES_MESES } from "../services/formateo"
 import { indiceMes } from "../services/calculos"
+import { CreditCard, Pencil, Trash2, Save, Check } from "lucide-react"
 
 // ── Pasos del wizard (funciones puras, state vive en Credito) ─────────────
 
@@ -187,8 +188,6 @@ function pasoFecha() {
 export default function Credito() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
-
   const { datos, actualizarDatos, usuarioActivo, fmt } = useDatos()
   const hoy = new Date()
   const usuarios = datos.config.usuarios
@@ -345,29 +344,21 @@ export default function Credito() {
   return (
     <div style={estilos.estiloPantalla}>
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeIn 0.35s ease" }}>
         <div style={estilos.estiloHeader}>
-          <button
-            onClick={() => setMenuAbierto(true)}
-            style={{ background: "none", border: "none", fontSize: "24px", marginRight: "10px", cursor: "pointer", color: COLORES.primario }}
-          >
-            ☰
-          </button>
           <h1 style={estilos.estiloTitulo}>Crédito</h1>
         </div>
 
         {/* Botón para abrir wizard */}
         <button
           onClick={abrirNuevo}
-          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px" }}
+          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
         >
-          💳 + Nuevo crédito 💳
+          <CreditCard size={16} /> Nuevo crédito
         </button>
 
         {/* Listado de créditos pendientes */}
@@ -457,9 +448,10 @@ export default function Credito() {
                           background: COLORES.primarioSuave,
                           color: COLORES.primario,
                           border: `1px solid ${COLORES.primario}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        ✏️ Editar
+                        <Pencil size={14} /> Editar
                       </button>
                       <button
                         onClick={() => setConfirmarEliminarId(a.id)}
@@ -473,9 +465,10 @@ export default function Credito() {
                           background: COLORES.fondoPanel,
                           color: COLORES.peligro,
                           border: `1px solid ${COLORES.peligro}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        🗑️ Eliminar
+                        <Trash2 size={14} /> Eliminar
                       </button>
                     </div>
                   )}
@@ -501,7 +494,7 @@ export default function Credito() {
           onFin={guardar}
           onCerrar={cerrarWizard}
           titulo={editandoId ? "Editar crédito" : "Nuevo crédito"}
-          labelFin={editandoId ? "💾 Guardar cambios" : "✓ Guardar"}
+          labelFin={editandoId ? <><Save size={16} /> Guardar cambios</> : <><Check size={16} /> Guardar</>}
         />
       )}
 

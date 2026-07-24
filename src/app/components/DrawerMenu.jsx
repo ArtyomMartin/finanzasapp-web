@@ -1,135 +1,164 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useDatos } from '../context/AppContext';
 import { COLORES, BLUR } from '../theme';
+import { Home, RefreshCw, CreditCard, TrendingUp, DollarSign, Receipt, Landmark, Shield, FileText, ClipboardList, Search, Calendar, MapPin, BarChart2, Lightbulb, Settings, MoreHorizontal } from "lucide-react"
 
 const PREFIX = "/app"
 
-// Definición de todos los items con el nivel mínimo requerido
-const ITEMS_PRINCIPALES = [
-  { label: "💰 Ingresos",            ruta: `${PREFIX}/ingresos`,         nivel: "basico" },
-  { label: "🏠 Egresos",             ruta: `${PREFIX}/egresos`,          nivel: "basico" },
-  { label: "💸 Hacer Pagos",         ruta: `${PREFIX}/hacer-pagos`,      nivel: "basico" },
-  { label: "💳 Crédito",             ruta: `${PREFIX}/credito`,          nivel: "medio" },
-  { label: "🔄 Ahorro",              ruta: `${PREFIX}/reposicion`,       nivel: "medio" },
-  { label: "🛡️ Fondo de emergencia", ruta: `${PREFIX}/fondo-emergencia`, nivel: "avanzado" },
+// Items fijos en la barra inferior
+const ITEMS_BARRA = [
+  { label: "Inicio",    icono: <Home size={20}/>,        ruta: `${PREFIX}`               },
+  { label: "Ahorro",    icono: <RefreshCw size={20}/>,   ruta: `${PREFIX}/reposicion`     },
+  { label: "Pagos",     icono: <CreditCard size={20}/>,  ruta: `${PREFIX}/hacer-pagos`    },
+  { label: "Rendim.",   icono: <TrendingUp size={20}/>,  ruta: `${PREFIX}/rendimientos`   },
 ]
 
-const ITEMS_SECUNDARIOS = [
-  { label: "🧾 Netos",          ruta: `${PREFIX}/gustos`,         nivel: "medio" },
-  { label: "📝 Planes",         ruta: `${PREFIX}/planes`,         nivel: "medio" },
-  { label: "🔍 Detalle Gastos", ruta: `${PREFIX}/detalle-gastos`, nivel: "medio" },
-  { label: "📅 Cuotas",         ruta: `${PREFIX}/cuotas`,         nivel: "avanzado" },
-  { label: "📍 Dinero",         ruta: `${PREFIX}/ubi-plata`,      nivel: "avanzado" },
-  { label: "📈 Inversiones",    ruta: `${PREFIX}/inversiones`,    nivel: "avanzado" },
-  { label: "📈 Rendimientos",   ruta: `${PREFIX}/rendimientos`,   nivel: "avanzado" },
-  { label: "💡 Consejos",        ruta: `${PREFIX}/consejos`,       nivel: "avanzado" },
+// Todo lo demás va al popup "Más"
+const ITEMS_MAS = [
+  { label: "Ingresos",         icono: <DollarSign size={18}/>,    ruta: `${PREFIX}/ingresos`         },
+  { label: "Egresos",          icono: <Home size={18}/>,          ruta: `${PREFIX}/egresos`          },
+  { label: "Crédito",          icono: <CreditCard size={18}/>,    ruta: `${PREFIX}/credito`          },
+  { label: "Fondo emergencia", icono: <Shield size={18}/>,        ruta: `${PREFIX}/fondo-emergencia` },
+  { label: "Netos",            icono: <FileText size={18}/>,      ruta: `${PREFIX}/gustos`           },
+  { label: "Planes",           icono: <ClipboardList size={18}/>, ruta: `${PREFIX}/planes`           },
+  { label: "Detalle Gastos",   icono: <Search size={18}/>,        ruta: `${PREFIX}/detalle-gastos`   },
+  { label: "Cuotas",           icono: <Calendar size={18}/>,      ruta: `${PREFIX}/cuotas`           },
+  { label: "Dinero",           icono: <MapPin size={18}/>,        ruta: `${PREFIX}/ubi-plata`        },
+  { label: "Inversiones",      icono: <BarChart2 size={18}/>,     ruta: `${PREFIX}/inversiones`      },
+  { label: "Consejos",         icono: <Lightbulb size={18}/>,     ruta: `${PREFIX}/consejos`         },
+  { label: "Ajustes",          icono: <Settings size={18}/>,      ruta: `${PREFIX}/ajustes`          },
 ]
 
-const ORDEN_NIVELES = { basico: 0, medio: 1, avanzado: 2 }
+const DrawerMenu = ({ rutaActual, alNavegar }) => {
+  const [masAbierto, setMasAbierto] = useState(false)
 
-function itemVisible(item, nivelActivo) {
-  return ORDEN_NIVELES[item.nivel] <= ORDEN_NIVELES[nivelActivo]
-}
+  const barraVisible = ITEMS_BARRA
+  const masVisible   = ITEMS_MAS
 
-const DrawerMenu = ({ abierto, setAbierto, rutaActual, alNavegar }) => {
-  const { nivel } = useDatos()
+  const navegar = (ruta) => { setMasAbierto(false); alNavegar(ruta) }
 
-  const primarios   = ITEMS_PRINCIPALES.filter(i => itemVisible(i, nivel))
-  const secundarios = ITEMS_SECUNDARIOS.filter(i => itemVisible(i, nivel))
-
-  const styles = {
-    overlay: {
-      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9998,
-      opacity: abierto ? 1 : 0,
-      pointerEvents: abierto ? "auto" : "none",
-      transition: "opacity 0.3s ease",
-    },
-    drawer: {
-      position: "fixed", top: 0, left: 0, bottom: 0, width: "280px",
-      backgroundColor: COLORES.fondo || "rgba(17, 24, 39, 0.9)",
-      backdropFilter: BLUR || "blur(15px)", WebkitBackdropFilter: BLUR || "blur(15px)",
-      zIndex: 9999,
-      display: "flex", flexDirection: "column",
-      borderRight: `1px solid ${COLORES.borde}`,
-      transform: abierto ? "translateX(0)" : "translateX(-100%)",
-      transition: "transform 0.3s ease",
-    },
-    header: { padding: "24px 20px", borderBottom: `1px solid ${COLORES.borde}` },
-    logo: { fontSize: "22px", fontWeight: "800", color: COLORES.primario },
-    nivelBadge: {
-      marginTop: "6px",
-      fontSize: "11px",
-      fontWeight: "600",
-      color: COLORES.textoSecundario,
-      textTransform: "uppercase",
-      letterSpacing: "0.5px",
-    },
-    scroll: { flex: 1, overflowY: "auto", padding: "12px" },
-    label: { padding: "16px 8px 8px", fontSize: "11px", fontWeight: "700", color: COLORES.textoSecundario, textTransform: "uppercase", letterSpacing: "1px" },
-    item: {
-      width: "100%", padding: "12px 16px", background: "none", border: "none", color: COLORES.texto,
-      textAlign: "left", fontSize: "15px", fontWeight: "500", borderRadius: "10px", cursor: "pointer", margin: "2px 0",
-      transition: "all 0.2s"
-    },
-    activo: { backgroundColor: `${COLORES.primario}26`, color: COLORES.primario, fontWeight: "700" } // 26 = ~15% opacidad
+  const estiloBarra = {
+    position: "fixed",
+    bottom: "16px", left: "16px", right: "16px",
+    height: "64px",
+    backgroundColor: COLORES.fondo || "rgba(17, 24, 39, 0.97)",
+    backdropFilter: BLUR || "blur(16px)",
+    WebkitBackdropFilter: BLUR || "blur(16px)",
+    border: `1px solid ${COLORES.borde}`,
+    borderRadius: "20px",
+    display: "flex",
+    alignItems: "stretch",
+    zIndex: 9000,
+    boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+    overflow: "hidden",
   }
 
-  const navegar = (ruta) => { alNavegar(ruta); setAbierto(false) }
+  const estiloItem = (activo) => ({
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "3px",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: "8px 4px",
+    color: activo ? COLORES.primario : COLORES.textoMuted,
+    transition: "color 0.15s ease",
+    WebkitTapHighlightColor: "transparent",
+  })
+
+  const estiloIcono = { fontSize: "20px", lineHeight: 1 }
+  const estiloLabel = (activo) => ({
+    fontSize: "10px",
+    fontWeight: activo ? "700" : "500",
+    letterSpacing: "0.02em",
+    color: activo ? COLORES.primario : COLORES.textoMuted,
+  })
 
   const contenido = (
     <>
-      <div style={styles.overlay} onClick={() => setAbierto(false)} />
-      <div style={styles.drawer}>
-        <div style={styles.header}>
-          <div style={styles.logo}>FinanzasApp</div>
-          <div style={styles.nivelBadge}>
-            {{ basico: "● Básico", medio: "●● Medio", avanzado: "●●● Avanzado" }[nivel]}
-          </div>
-        </div>
-        <div style={styles.scroll}>
-          <button
-            style={{ ...styles.item, ...(rutaActual === `${PREFIX}` ? styles.activo : {}) }}
-            onClick={() => navegar(`${PREFIX}`)}
-          >
-            🏠 Inicio
-          </button>
+      {/* Overlay del popup "Más" */}
+      {masAbierto && ReactDOM.createPortal(
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 9001,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+          }}
+          onClick={() => setMasAbierto(false)}
+        />,
+        document.body
+      )}
 
-          <div style={styles.label}>Principales</div>
-          {primarios.map(b => (
-            <button
-              key={b.ruta}
-              style={{ ...styles.item, ...(rutaActual === b.ruta ? styles.activo : {}) }}
-              onClick={() => navegar(b.ruta)}
-            >
-              {b.label}
+      {/* Popup "Más" */}
+      {masAbierto && ReactDOM.createPortal(
+        <div
+          style={{
+            position: "fixed",
+            bottom: "72px",
+            right: "8px",
+            zIndex: 9002,
+            backgroundColor: COLORES.fondo || "rgba(17, 24, 39, 0.98)",
+            backdropFilter: BLUR || "blur(16px)",
+            WebkitBackdropFilter: BLUR || "blur(16px)",
+            border: `1px solid ${COLORES.borde}`,
+            borderRadius: "16px",
+            padding: "8px",
+            minWidth: "200px",
+            boxShadow: "0 -4px 32px rgba(0,0,0,0.4)",
+            animation: "popupMasIn 0.2s cubic-bezier(0.32,0.72,0,1)",
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <style>{`@keyframes popupMasIn { from { opacity:0; transform:scale(0.92) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }`}</style>
+          {masVisible.map(item => {
+            const activo = rutaActual === item.ruta
+            return (
+              <button
+                key={item.ruta}
+                onClick={() => navegar(item.ruta)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "11px 16px",
+                  background: activo ? `${COLORES.primario}22` : "none",
+                  border: "none",
+                  borderRadius: "10px",
+                  color: activo ? COLORES.primario : COLORES.texto || COLORES.textoBlanco,
+                  fontSize: "15px",
+                  fontWeight: activo ? "700" : "500",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <span style={{display:"flex",alignItems:"center",gap:"10px"}}>{item.icono}{item.label}</span>
+              </button>
+            )
+          })}
+        </div>,
+        document.body
+      )}
+
+      {/* Barra inferior */}
+      <div className="drawer-menu-barra" style={estiloBarra}>
+        {barraVisible.map(item => {
+          const activo = rutaActual === item.ruta
+          return (
+            <button key={item.ruta} style={estiloItem(activo)} onClick={() => navegar(item.ruta)}>
+              <span style={estiloIcono}>{item.icono}</span>
+              <span style={estiloLabel(activo)}>{item.label}</span>
             </button>
-          ))}
-
-          {secundarios.length > 0 && (
-            <>
-              <div style={styles.label}>Otros</div>
-              {secundarios.map(b => (
-                <button
-                  key={b.ruta}
-                  style={{ ...styles.item, ...(rutaActual === b.ruta ? styles.activo : {}) }}
-                  onClick={() => navegar(b.ruta)}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </>
-          )}
-
-          <div style={{ margin: "20px 16px", height: "1px", backgroundColor: COLORES.borde }} />
-          <button
-            style={{ ...styles.item, ...(rutaActual === `${PREFIX}/ajustes` ? styles.activo : {}) }}
-            onClick={() => navegar(`${PREFIX}/ajustes`)}
-          >
-            ⚙️ Ajustes
-          </button>
-        </div>
+          )
+        })}
+        {/* Botón "Más" */}
+        <button style={estiloItem(masAbierto)} onClick={() => setMasAbierto(v => !v)}>
+          <MoreHorizontal size={20} />
+          <span style={estiloLabel(masAbierto)}>Más</span>
+        </button>
       </div>
     </>
   )

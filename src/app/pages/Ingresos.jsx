@@ -9,6 +9,7 @@ import WizardModal from "../components/WizardModal"
 import { COLORES, estilos } from "../theme"
 import { NOMBRES_MESES } from "../services/formateo"
 import { indiceMes } from "../services/calculos"
+import { Briefcase, Zap, Handshake, User, DollarSign, Calendar, Pencil, Trash2, Save, Check, ChevronUp, ChevronDown, ArrowRight } from "lucide-react"
 
 function generarAnios(desde = 0, cantidad = 10) {
   const base = new Date().getFullYear()
@@ -29,11 +30,11 @@ const PASO_TIPO = {
   titulo: "¿Qué tipo de ingreso?",
   contenido: (s, set) => (
     <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
-      {[["salario", "💼 Salario"], ["variacion", "⚡ Extra"]].map(([t, label]) => (
+      {[["salario", <><Briefcase size={15} /> Salario</>], ["variacion", <><Zap size={15} /> Extra</>]].map(([t, label]) => (
         <button
           key={t}
           onClick={() => set(p => ({ ...p, tipo: t }))}
-          style={s.tipo === t ? estilos.estiloBotonOpcionActivo : estilos.estiloBotonOpcion}
+          style={{ ...(s.tipo === t ? estilos.estiloBotonOpcionActivo : estilos.estiloBotonOpcion), display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
         >
           {label}
         </button>
@@ -49,8 +50,8 @@ function pasoAlcance(mostrarAlcance) {
     contenido: (s, set) => (
       <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
         {[
-          ["compartido", "🤝 Compartido", "Entra al pool y se reparte según configuración"],
-          ["individual", "👤 Individual", "Va directo al bolsillo de este usuario"],
+          ["compartido", <><Handshake size={14} /> Compartido</>, "Entra al pool y se reparte según configuración"],
+          ["individual", <><User size={14} /> Individual</>, "Va directo al bolsillo de este usuario"],
         ].map(([val, label, desc]) => (
           <button
             key={val}
@@ -78,6 +79,7 @@ function pasoAlcance(mostrarAlcance) {
               color: s.alcance === val
                 ? (val === "compartido" ? COLORES.positivo : COLORES.neutro)
                 : COLORES.textoSecundario,
+              display: "flex", alignItems: "center", gap: "6px",
             }}>
               {label}
             </span>
@@ -224,8 +226,6 @@ function pasoFechaIngreso() {
 export default function Ingresos() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
-
   const { datos, actualizarDatos, usuarioActivo, fmt } = useDatos()
   const hoy = new Date()
   const usuarios = datos.config.usuarios
@@ -445,28 +445,20 @@ export default function Ingresos() {
   return (
     <div style={estilos.estiloPantalla}>
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeIn 0.35s ease" }}>
         <div style={estilos.estiloHeader}>
-          <button
-            onClick={() => setMenuAbierto(true)}
-            style={{ background: "none", border: "none", fontSize: "24px", marginRight: "10px", cursor: "pointer", color: COLORES.primario }}
-          >
-            ☰
-          </button>
-          <h1 style={estilos.estiloTitulo}>💰 Ingresos</h1>
+          <h1 style={{ ...estilos.estiloTitulo, display: "flex", alignItems: "center", gap: "8px" }}><DollarSign size={20} /> Ingresos</h1>
         </div>
 
         <button
           onClick={abrirNuevo}
-          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px" }}
+          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
         >
-          💰 + Nuevo ingreso 💰
+          <DollarSign size={16} /> Nuevo ingreso
         </button>
 
         {/* Totales del mes */}
@@ -531,22 +523,23 @@ export default function Ingresos() {
                             <span style={{
                               fontSize: "10px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px",
                               background: COLORES.primarioSuave, border: `1px solid ${COLORES.neutro}`, color: COLORES.neutro,
-                            }}>👤 individual</span>
+                              display: "inline-flex", alignItems: "center", gap: "3px",
+                            }}><User size={11} /> individual</span>
                           )}
                         </div>
                         {item._nombre ? (
                           <div style={{ fontSize: "13px", color: COLORES.primario, marginTop: "1px" }}>{item._nombre}</div>
                         ) : null}
-                        <div style={{ fontSize: "12px", color: COLORES.textoSecundario, marginTop: "2px" }}>
+                        <div style={{ fontSize: "12px", color: COLORES.textoSecundario, marginTop: "2px", display: "flex", alignItems: "center", gap: "4px" }}>
                           {item._inicioTexto}
-                          {item._tipo === "salario" && ` → ${item._finTexto}`}
+                          {item._tipo === "salario" && <><ArrowRight size={11} /> {item._finTexto}</>}
                         </div>
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "16px", fontWeight: "700", color: COLORES.positivo }}>{fmt(item.monto)}</div>
-                      <div style={{ fontSize: "12px", color: activo ? COLORES.primario : COLORES.textoSecundario, marginTop: "2px" }}>
-                        {activo ? "▲" : "▼"}
+                      <div style={{ fontSize: "12px", color: activo ? COLORES.primario : COLORES.textoSecundario, marginTop: "2px", display: "flex", justifyContent: "flex-end" }}>
+                        {activo ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </div>
                     </div>
                   </button>
@@ -568,9 +561,10 @@ export default function Ingresos() {
                           cursor: "pointer", fontWeight: "600",
                           background: COLORES.fondoPanel, color: COLORES.advertencia,
                           border: `1px solid ${COLORES.advertencia}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        📅 Finalizar
+                        <Calendar size={14} /> Finalizar
                       </button>
                       <button
                         onClick={() => abrirEditar(item)}
@@ -579,9 +573,10 @@ export default function Ingresos() {
                           cursor: "pointer", fontWeight: "600",
                           background: COLORES.primarioSuave, color: COLORES.primario,
                           border: `1px solid ${COLORES.primario}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        ✏️ Editar
+                        <Pencil size={14} /> Editar
                       </button>
                       <button
                         onClick={() => setConfirmarEliminarItem(item)}
@@ -590,9 +585,10 @@ export default function Ingresos() {
                           cursor: "pointer", fontWeight: "600",
                           background: COLORES.fondoPanel, color: COLORES.peligro,
                           border: `1px solid ${COLORES.peligro}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        🗑️ Eliminar
+                        <Trash2 size={14} /> Eliminar
                       </button>
                     </div>
                   )}
@@ -618,7 +614,7 @@ export default function Ingresos() {
           onFin={guardar}
           onCerrar={cerrarWizard}
           titulo={editandoId ? "Editar ingreso" : "Nuevo ingreso"}
-          labelFin={editandoId ? "💾 Guardar cambios" : "✓ Guardar"}
+          labelFin={editandoId ? <><Save size={16} /> Guardar cambios</> : <><Check size={16} /> Guardar</>}
         />
       )}
 

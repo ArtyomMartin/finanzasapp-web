@@ -3,11 +3,11 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { useDatos } from "../context/AppContext"
 import DrawerMenu from "../components/DrawerMenu"
 import { COLORES, estilos } from "../theme"
+import { ClipboardList, Trash2 } from "lucide-react"
 
 export default function Planes() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
   const { datos, actualizarDatos } = useDatos()
   const planes = (datos.planes || []).filter(p => !p.eliminado)
 
@@ -41,16 +41,13 @@ export default function Planes() {
   return (
     <div style={estilos.estiloPantalla}>
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estilos.estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ ...estilos.estiloBotonIcono, fontSize: "24px", marginRight: "10px" }}>☰</button>
-          <h1 style={estilos.estiloTitulo}>📋 Planes y acuerdos</h1>
+          <h1 style={{ ...estilos.estiloTitulo, display: "flex", alignItems: "center", gap: "8px" }}><ClipboardList size={20} /> Planes y acuerdos</h1>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "30px" }}>
@@ -103,8 +100,9 @@ export default function Planes() {
                   fontWeight: "600",
                   padding: "7px 14px",
                   borderRadius: "8px",
+                  display: "flex", alignItems: "center", gap: "6px",
                 }}
-              >🗑 Eliminar</button>
+              ><Trash2 size={14} /> Eliminar</button>
             </div>
           ))}
         </div>

@@ -11,11 +11,11 @@ import { calcularMes, proximosMeses, ajustesActivosEnMes } from "../services/cal
 import { NOMBRES_MESES } from "../services/formateo"
 // CAMBIO: estiloOverlay y estiloBottomSheet reemplazados por estiloPopupOverlay y estiloPopup
 import { COLORES, estiloPantalla, estiloHeader, estiloTitulo, estiloBotonIcono, estiloPopupOverlay, estiloPopup, estiloTarjeta, estiloSubtitulo, estiloLabel } from "../theme"
+import { X } from "lucide-react"
 
 export default function Gustos() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
   const { datos, actualizarDatos, usuarioActivo, fmt } = useDatos()
   const [mesDetalle, setMesDetalle] = useState(null)
 
@@ -58,15 +58,12 @@ export default function Gustos() {
     <div style={estiloPantalla}>
 
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ ...estiloBotonIcono, fontSize: "24px", marginRight: "10px" }}>☰</button>
           <h1 style={estiloTitulo}>Neto de cada mes</h1>
         </div>
 
@@ -117,22 +114,22 @@ export default function Gustos() {
                 {NOMBRES_MESES[mesN - 1]} {anioN}
               </h2>
               <button
-                style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: COLORES?.textoMuted || "#8A93A3" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: COLORES?.textoMuted || "#8A93A3", display: "flex" }}
                 onClick={() => setMesDetalle(null)}
-              >✕</button>
+              ><X size={18} /></button>
             </div>
 
             {/* Contenido scrollable */}
             <div style={{ overflowY: "auto", paddingBottom: "24px" }}>
               <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={estiloLabel}>Antes de ahorro o credito</span>
+                <span style={estiloLabel}>Antes de ahorro o crédito</span>
                 <span style={{ fontSize: "22px", fontWeight: "700", color: COLORES?.exito || "#3DDC97" }}>{fmt(detalleData.netoProvisorio)}</span>
               </div>
 
               <div style={{ height: "1px", backgroundColor: COLORES?.borde || "rgba(44,52,64,0.8)", margin: "0 20px" }} />
 
               <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={estiloLabel}>Ahorro y pagos con cretido personal</span>
+                <span style={estiloLabel}>Ahorro y pagos con crédito personal</span>
                 {ajsFondo.map(a => (
                   <FilaEliminable key={a.id} onEliminar={() => eliminarAjuste(a.id)}>
                     <div style={{ display: "flex", justifyContent: "space-between", width: "100%", padding: "4px 0" }}>

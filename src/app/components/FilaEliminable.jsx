@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════
 // FILA_ELIMINABLE.JSX
 // Wrapper reutilizable para cualquier fila con botón de borrado.
-// Flujo: mostrar 🗑 → al pulsar, pedir confirmación inline (✓ / ✕)
+// Flujo: mostrar icono de papelera → al pulsar, pedir confirmación inline
 // → al confirmar, ejecuta onEliminar.
 // El estado de "confirmando" es local al componente (no sube al padre).
 //
@@ -13,9 +13,10 @@
 
 import { useState } from "react"
 import { COLORES } from "../theme"
+import { Trash2, Check, X } from "lucide-react"
 
 export default function FilaEliminable({ children, onEliminar }) {
-  // confirmando: true = mostrando botones ✓/✕ en lugar del 🗑
+  // confirmando: true = mostrando botones de confirmar/cancelar en lugar de la papelera
   const [confirmando, setConfirmando] = useState(false)
 
   const styles = {
@@ -33,9 +34,9 @@ export default function FilaEliminable({ children, onEliminar }) {
       padding: "6px 10px",
       border: "none",
       backgroundColor: "transparent",
-      fontSize: "18px",
       cursor: "pointer",
-      color: COLORES.textoSecundario
+      color: COLORES.textoSecundario,
+      display: "flex",
     },
     btnSi: {
       padding: "6px 12px",
@@ -44,7 +45,8 @@ export default function FilaEliminable({ children, onEliminar }) {
       color: "white",
       borderRadius: "6px",
       cursor: "pointer",
-      fontWeight: "bold"
+      fontWeight: "bold",
+      display: "flex",
     },
     btnNo: {
       padding: "6px 12px",
@@ -53,7 +55,8 @@ export default function FilaEliminable({ children, onEliminar }) {
       color: "white",
       borderRadius: "6px",
       cursor: "pointer",
-      fontWeight: "bold"
+      fontWeight: "bold",
+      display: "flex",
     }
   }
 
@@ -63,12 +66,12 @@ export default function FilaEliminable({ children, onEliminar }) {
       {confirmando ? (
         // Modo confirmación: dos botones pequeños
         <div style={{ display: "flex", gap: "6px" }}>
-          <button onClick={onEliminar} style={styles.btnSi}>✓</button>
-          <button onClick={() => setConfirmando(false)} style={styles.btnNo}>✕</button>
+          <button onClick={onEliminar} style={styles.btnSi}><Check size={16} /></button>
+          <button onClick={() => setConfirmando(false)} style={styles.btnNo}><X size={16} /></button>
         </div>
       ) : (
         // Modo normal: solo el icono de papelera
-        <button onClick={() => setConfirmando(true)} style={styles.btnEliminar}>🗑</button>
+        <button onClick={() => setConfirmando(true)} style={styles.btnEliminar}><Trash2 size={18} /></button>
       )}
     </div>
   )

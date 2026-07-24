@@ -1,3 +1,5 @@
+//C:documentos/Proyectos/FinanzasApp/src/pantallas/DetalleGastos.jsx
+
 import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useDatos } from "../context/AppContext"
@@ -5,6 +7,7 @@ import DrawerMenu from "../components/DrawerMenu"
 // Importamos calculos centralizados (eliminando locales)
 import { lunesEnMes, montoEgresoMes } from "../services/calculos"
 import { COLORES, estiloPantalla, estiloHeader, estiloTitulo, estiloBotonSecundario } from "../theme"
+import { Wallet, Upload, CreditCard, ArrowLeft, ArrowRight } from "lucide-react"
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
 
@@ -22,8 +25,6 @@ function estaActivo(item, mes, anio) {
 export default function DetalleGastos() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
-  
   // Usamos fmt del contexto centralizado
   const { datos, fmt } = useDatos()
   const [anioSel, setAnioSel] = useState(null)
@@ -81,7 +82,7 @@ export default function DetalleGastos() {
 
     return (
       <div>
-        <h3 style={{ marginTop: "20px", color: COLORES.positivo }}>💰 Salarios</h3>
+        <h3 style={{ marginTop: "20px", color: COLORES.positivo, display: "flex", alignItems: "center", gap: "6px" }}><Wallet size={16} /> Salarios</h3>
         {salariosDelMes.length === 0 && <p style={{ color: COLORES.textoSecundario }}>Sin registros</p>}
         {salariosDelMes.map(s => {
           const usuario = usuarios.find(u => u.id === s.usuarioId)
@@ -98,7 +99,7 @@ export default function DetalleGastos() {
           )
         })}
 
-        <h3 style={{ marginTop: "20px", color: COLORES.advertencia }}>📤 Egresos</h3>
+        <h3 style={{ marginTop: "20px", color: COLORES.advertencia, display: "flex", alignItems: "center", gap: "6px" }}><Upload size={16} /> Egresos</h3>
         {egresosDelMes.length === 0 && <p style={{ color: COLORES.textoSecundario }}>Sin registros</p>}
         {egresosDelMes.map(e => {
           const total = montoEgresoMes(e, anio, mes)
@@ -125,7 +126,7 @@ export default function DetalleGastos() {
           )
         })}
 
-        <h3 style={{ marginTop: "20px", color: COLORES.neutro }}>💰💳 Ahorro/Credito</h3>
+        <h3 style={{ marginTop: "20px", color: COLORES.neutro, display: "flex", alignItems: "center", gap: "6px" }}><Wallet size={16} /><CreditCard size={16} /> Ahorro/Crédito</h3>
         {ajustesDelMes.length === 0 && <p style={{ color: COLORES.textoSecundario }}>Sin registros</p>}
         {ajustesDelMes.map(a => {
           const usuario = usuarios.find(u => u.id === a.usuarioId)
@@ -146,15 +147,14 @@ export default function DetalleGastos() {
 
   if (!anioSel) return (
     <div style={estiloPantalla}>
-      <DrawerMenu abierto={menuAbierto} setAbierto={setMenuAbierto} rutaActual={location.pathname} alNavegar={navigate} />
+      <DrawerMenu rutaActual={location.pathname} alNavegar={navigate} />
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ ...estiloBotonSecundario, fontSize: "24px", marginRight: "10px", padding: "0 10px", border: 'none', background: 'transparent' }}>☰</button>
           <h1 style={estiloTitulo}>Detalle de Gastos</h1>
         </div>
         {anios.length === 0 && <p style={{ color: COLORES.textoSecundario }}>Sin datos registrados.</p>}
         {anios.map(a => (
-          <button key={a} onClick={() => setAnioSel(a)} style={styles.btnItem}>{a} →</button>
+          <button key={a} onClick={() => setAnioSel(a)} style={{ ...styles.btnItem, display: "flex", alignItems: "center", justifyContent: "space-between" }}>{a} <ArrowRight size={16} /></button>
         ))}
       </div>
     </div>
@@ -163,16 +163,15 @@ export default function DetalleGastos() {
   const meses2 = mesesConDatos(anioSel)
   if (!mesSel) return (
     <div style={estiloPantalla}>
-      <DrawerMenu abierto={menuAbierto} setAbierto={setMenuAbierto} rutaActual={location.pathname} alNavegar={navigate} />
+      <DrawerMenu rutaActual={location.pathname} alNavegar={navigate} />
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ ...estiloBotonSecundario, fontSize: "24px", marginRight: "10px", padding: "0 10px", border: 'none', background: 'transparent' }}>☰</button>
-          <button onClick={() => setAnioSel(null)} style={{ ...estiloBotonSecundario, border: 'none', background: 'transparent', padding: 0 }}>← Volver</button>
+          <button onClick={() => setAnioSel(null)} style={{ ...estiloBotonSecundario, border: 'none', background: 'transparent', padding: 0, display: "flex", alignItems: "center", gap: "6px" }}><ArrowLeft size={16} /> Volver</button>
           <h1 style={estiloTitulo}>{anioSel}</h1>
         </div>
         {meses2.length === 0 && <p style={{ color: COLORES.textoSecundario }}>Sin datos para este año.</p>}
         {meses2.map(m => (
-          <button key={m} onClick={() => setMesSel(m)} style={styles.btnItem}>{MESES[m - 1]} →</button>
+          <button key={m} onClick={() => setMesSel(m)} style={{ ...styles.btnItem, display: "flex", alignItems: "center", justifyContent: "space-between" }}>{MESES[m - 1]} <ArrowRight size={16} /></button>
         ))}
       </div>
     </div>
@@ -180,11 +179,10 @@ export default function DetalleGastos() {
 
   return (
     <div style={estiloPantalla}>
-      <DrawerMenu abierto={menuAbierto} setAbierto={setMenuAbierto} rutaActual={location.pathname} alNavegar={navigate} />
+      <DrawerMenu rutaActual={location.pathname} alNavegar={navigate} />
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ ...estiloBotonSecundario, fontSize: "24px", marginRight: "10px", padding: "0 10px", border: 'none', background: 'transparent' }}>☰</button>
-          <button onClick={() => setMesSel(null)} style={{ ...estiloBotonSecundario, border: 'none', background: 'transparent', padding: 0 }}>← Volver</button>
+          <button onClick={() => setMesSel(null)} style={{ ...estiloBotonSecundario, border: 'none', background: 'transparent', padding: 0, display: "flex", alignItems: "center", gap: "6px" }}><ArrowLeft size={16} /> Volver</button>
           <h1 style={estiloTitulo}>{MESES[mesSel - 1]} {anioSel}</h1>
         </div>
         <DetallesMes anio={anioSel} mes={mesSel} />

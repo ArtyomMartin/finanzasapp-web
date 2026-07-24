@@ -11,6 +11,7 @@ import { Capacitor } from "@capacitor/core"
 import { Filesystem, Directory } from "@capacitor/filesystem"
 import { Share } from "@capacitor/share"
 import { useDatos } from "../context/AppContext"
+import { Loader2, Upload, Download, AlertTriangle } from "lucide-react"
 
 export default function Backup() {
   const { datos, actualizarDatos, setUsuarioActivo } = useDatos()
@@ -77,7 +78,7 @@ export default function Backup() {
 
   function resetear() {
     const ok = window.confirm(
-      "⚠️ Esto eliminará TODOS los datos permanentemente.\n\n¿Continuar?"
+      "Esto eliminará TODOS los datos permanentemente.\n\n¿Continuar?"
     )
     if (ok) {
       // Limpiamos el usuario activo primero para evitar estado residual
@@ -91,16 +92,16 @@ export default function Backup() {
     <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "20px" }}>
 
       <button onClick={exportar} style={{ ...styles.azul, opacity: exportando ? 0.6 : 1 }} disabled={exportando}>
-        {exportando ? "⏳ Exportando..." : "📤 Exportar datos"}
+        {exportando ? <><Loader2 size={16} className="spin-animation" /> Exportando...</> : <><Upload size={16} /> Exportar datos</>}
       </button>
 
       <label style={styles.azul}>
-        📥 Importar datos
+        <Download size={16} /> Importar datos
         <input type="file" accept=".json" onChange={importar} style={{ display: "none" }} />
       </label>
 
       <button onClick={resetear} style={styles.rojo}>
-        ⚠️ Resetear datos ⚠️
+        <AlertTriangle size={16} /> Resetear datos
       </button>
 
     </div>
@@ -116,7 +117,11 @@ const styles = {
     color: "#FFFFFF",
     fontWeight: "600",
     cursor: "pointer",
-    textAlign: "center"
+    textAlign: "center",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
   },
   rojo: {
     padding: "14px",
@@ -126,6 +131,10 @@ const styles = {
     color: "#FFFFFF",
     fontWeight: "600",
     cursor: "pointer",
-    textAlign: "center"
+    textAlign: "center",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
   }
 }

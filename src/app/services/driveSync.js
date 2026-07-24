@@ -1,15 +1,23 @@
-// driveSync.js — Web pura (sin Capacitor)
-// Auth: OAuth2 redirect + renovación silenciosa por iframe (prompt=none)
+import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth"
 
 const FILE_NAME = "finanzas-db.json"
 
-const CLIENT_ID = "588167639813-71hurbr33dvaaanmf0n47uq45olvpc16.apps.googleusercontent.com"
-const SCOPES    = "https://www.googleapis.com/auth/drive.file"
-const REDIRECT_URI = window.location.origin + window.location.pathname
+const WEB_CLIENT_ID = "588167639813-71hurbr33dvaaanmf0n47uq45olvpc16.apps.googleusercontent.com"
 
 let accessToken = null
+let _inicializado = false
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
+
+function _inicializarSiNecesario() {
+  if (_inicializado) return
+  GoogleAuth.initialize({
+    clientId: WEB_CLIENT_ID,
+    scopes: ["profile", "email", "https://www.googleapis.com/auth/drive.file"],
+    grantOfflineAccess: false, // no usamos serverAuthCode ni client_secret
+  })
+  _inicializado = true
+}
 
 function _guardarToken(token, expiresInMs = 55 * 60 * 1000) {
   accessToken = token
@@ -19,57 +27,43 @@ function _guardarToken(token, expiresInMs = 55 * 60 * 1000) {
 }
 
 /**
- * Intenta renovar el token silenciosamente usando un iframe oculto con prompt=none.
- * Google responderá con el token en el hash si la sesión sigue activa.
- * Si no hay sesión activa, rechaza la promesa para que la UI pida reconectar.
+ * Intenta renovar el token en dos pasos:
+ *   1. GoogleAuth.refresh() — silencioso, funciona si la sesión sigue activa
+ *   2. GoogleAuth.signIn()  — fallback; en dispositivos con una sola cuenta
+ *      Google activa también es silencioso. Con múltiples cuentas puede
+ *      mostrar el selector de cuentas (comportamiento inevitable sin backend).
+ * Si ambos fallan, limpia tokens y lanza error para que la UI pida reconectar.
  */
-function _renovarTokenSilencioso() {
-  return new Promise((resolve, reject) => {
-    const state = crypto.randomUUID()
-    const url = new URL("https://accounts.google.com/o/oauth2/v2/auth")
-    url.searchParams.set("client_id",     CLIENT_ID)
-    url.searchParams.set("redirect_uri",  REDIRECT_URI)
-    url.searchParams.set("response_type", "token")
-    url.searchParams.set("scope",         SCOPES)
-    url.searchParams.set("prompt",        "none")
-    url.searchParams.set("state",         state)
+async function _renovarToken() {
+  _inicializarSiNecesario()
 
-    const iframe = document.createElement("iframe")
-    iframe.style.display = "none"
-    document.body.appendChild(iframe)
-
-    const timer = setTimeout(() => {
-      document.body.removeChild(iframe)
-      reject(new Error("Renovación silenciosa: timeout"))
-    }, 10000)
-
-    iframe.onload = () => {
-      try {
-        const hash = new URLSearchParams(
-          iframe.contentWindow.location.hash.substring(1)
-        )
-        const token = hash.get("access_token")
-        const expiresIn = parseInt(hash.get("expires_in") || "3300") * 1000
-        if (token) {
-          _guardarToken(token, expiresIn)
-          clearTimeout(timer)
-          document.body.removeChild(iframe)
-          resolve(token)
-        } else {
-          throw new Error("Sin token en respuesta iframe")
-        }
-      } catch (e) {
-        clearTimeout(timer)
-        document.body.removeChild(iframe)
-        localStorage.removeItem("drive-token")
-        localStorage.removeItem("drive-token-expira")
-        accessToken = null
-        reject(new Error("Sesión de Google expirada, vuelve a conectar Drive"))
-      }
+  // Intento 1 — refresh silencioso
+  try {
+    const result = await GoogleAuth.refresh()
+    if (result?.accessToken) {
+      _guardarToken(result.accessToken)
+      return result.accessToken
     }
+  } catch (_) {
+    // refresh falló (sesión fría), continuamos con signIn
+  }
 
-    iframe.src = url.toString()
-  })
+  // Intento 2 — signIn (silencioso si hay una sola cuenta en el dispositivo)
+  try {
+    const user = await GoogleAuth.signIn()
+    if (user?.authentication?.accessToken) {
+      _guardarToken(user.authentication.accessToken)
+      return user.authentication.accessToken
+    }
+  } catch (_) {
+    // signIn también falló
+  }
+
+  // Ambos fallaron — limpiar y forzar reconexión manual
+  localStorage.removeItem("drive-token")
+  localStorage.removeItem("drive-token-expira")
+  accessToken = null
+  throw new Error("Sesión de Google expirada, vuelve a conectar Drive")
 }
 
 async function _obtenerTokenValido() {
@@ -80,52 +74,19 @@ async function _obtenerTokenValido() {
     return accessToken
   }
 
-  return await _renovarTokenSilencioso()
+  return await _renovarToken()
 }
 
-/**
- * Inicia el flujo OAuth redirect.
- * Guarda un flag en sessionStorage para que al volver
- * Ajustes.jsx llame a manejarCallbackDrive() y haga sync.
- */
-export function iniciarAuth() {
-  const state = crypto.randomUUID()
-  sessionStorage.setItem("drive-oauth-state", state)
-  sessionStorage.setItem("drive-oauth-pending", "1")
+export async function iniciarAuth() {
+  _inicializarSiNecesario()
+  const user = await GoogleAuth.signIn()
 
-  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth")
-  url.searchParams.set("client_id",     CLIENT_ID)
-  url.searchParams.set("redirect_uri",  REDIRECT_URI)
-  url.searchParams.set("response_type", "token")
-  url.searchParams.set("scope",         SCOPES)
-  url.searchParams.set("prompt",        "consent")
-  url.searchParams.set("state",         state)
+  if (!user?.authentication?.accessToken) {
+    throw new Error("Google sign-in no devolvió accessToken")
+  }
 
-  window.location.href = url.toString()
-}
-
-/**
- * Llámalo al montar Ajustes si hay hash en la URL (vuelta del redirect).
- * Devuelve true si procesó un token, false si no había nada que procesar.
- */
-export function manejarCallbackDrive() {
-  const hash = new URLSearchParams(window.location.hash.substring(1))
-  const token = hash.get("access_token")
-  const state = hash.get("state")
-  const savedState = sessionStorage.getItem("drive-oauth-state")
-
-  if (!token) return false
-  if (state !== savedState) return false // CSRF check
-
-  const expiresIn = parseInt(hash.get("expires_in") || "3300") * 1000
-  _guardarToken(token, expiresIn)
-  sessionStorage.removeItem("drive-oauth-state")
-  sessionStorage.removeItem("drive-oauth-pending")
-
-  // Limpiar el hash de la URL sin recargar
-  history.replaceState(null, "", window.location.pathname + window.location.search)
-
-  return true
+  _guardarToken(user.authentication.accessToken)
+  return accessToken
 }
 
 export function tokenGuardado() {
@@ -138,25 +99,27 @@ export function tokenGuardado() {
 }
 
 /**
- * Renueva el token silenciosamente al arrancar.
+ * Renueva el accessToken silenciosamente al arrancar la app.
  * Devuelve true si la sesión sigue activa, false si hay que re-login manual.
  */
 export async function renovarSesionDrive() {
   if (!localStorage.getItem("drive-token")) return false
   try {
-    await _renovarTokenSilencioso()
+    await _renovarToken()
     return true
   } catch (_) {
     return false
   }
 }
 
-export function cerrarSesion() {
+export async function cerrarSesion() {
+  _inicializarSiNecesario()
+  try {
+    await GoogleAuth.signOut()
+  } catch (_) {}
   accessToken = null
   localStorage.removeItem("drive-token")
   localStorage.removeItem("drive-token-expira")
-  sessionStorage.removeItem("drive-oauth-state")
-  sessionStorage.removeItem("drive-oauth-pending")
 }
 
 // ── DRIVE API ─────────────────────────────────────────────────────────────────
@@ -274,14 +237,20 @@ export function mergeDatos(local, remoto) {
     resultado.config = fechaRemota > fechaLocal ? remoto.config : local.config
   }
 
+  if (remoto.fondoEmergencia?.actualizadoEn) {
+    const fechaLocal  = new Date(local.fondoEmergencia?.actualizadoEn  || 0)
+    const fechaRemota = new Date(remoto.fondoEmergencia.actualizadoEn)
+    resultado.fondoEmergencia = fechaRemota > fechaLocal ? remoto.fondoEmergencia : local.fondoEmergencia
+  }
+
   return resultado
 }
 
 // ── SYNC COMPLETO ─────────────────────────────────────────────────────────────
 
-export async function sincronizar(datosLocales, actualizarDatos) {
+export async function sincronizar(datosLocales, actualizarDatos, mergeFn = mergeDatos) {
   const fileId = await buscarArchivo()
-  const token  = await _obtenerTokenValido()
+  const token = await _obtenerTokenValido()
 
   let remoto = null
   if (fileId) {
@@ -296,7 +265,7 @@ export async function sincronizar(datosLocales, actualizarDatos) {
     remoto = await res.json()
   }
 
-  const fusionado = remoto ? mergeDatos(datosLocales, remoto) : datosLocales
+  const fusionado = remoto ? mergeFn(datosLocales, remoto) : datosLocales
   await subirDB(fusionado, fileId)
   actualizarDatos(fusionado)
   return fusionado

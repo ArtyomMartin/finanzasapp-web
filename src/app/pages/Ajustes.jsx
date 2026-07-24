@@ -1,4 +1,4 @@
-//c:documents/finanzasapp-web/src/screens/Ajustes.jsx
+//c:documents/finanzas-personales/src/screens/Ajustes.jsx
 
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
@@ -8,7 +8,7 @@ import { Share } from "@capacitor/share"
 import Backup from "../components/Backup"
 import DrawerMenu from "../components/DrawerMenu"
 import { useDatos } from "../context/AppContext"
-import { iniciarAuth, tokenGuardado, cerrarSesion, sincronizar, mergeDatos, manejarCallbackDrive } from "../services/driveSync"
+import { iniciarAuth, tokenGuardado, cerrarSesion, sincronizar, mergeDatos } from "../services/driveSync"
 import {
   iniciarAuthDropbox,
   tokenGuardadoDropbox,
@@ -16,7 +16,8 @@ import {
   sincronizarDropbox,
 } from "../services/dropboxSync"
 import { purgarDatos } from "../services/purga"
-import { 
+import { Palette, Cloud, Package, Trash2, Search, BarChart2, Loader2, XCircle, CheckCircle2, WifiOff, AlertTriangle, RefreshCw } from "lucide-react"
+import {
   COLORES, 
   estiloPantalla, 
   estiloHeader, 
@@ -38,8 +39,6 @@ export default function Ajustes() {
   const navigate = useNavigate()
   const location = useLocation()
   const { datos, actualizarDatos, tema, cambiarTema } = useDatos()
-  const [menuAbierto, setMenuAbierto] = useState(false)
-
   // Drive
   const [driveConectado, setDriveConectado] = useState(false)
   const [driveEstado, setDriveEstado] = useState("idle")
@@ -68,13 +67,6 @@ export default function Ajustes() {
   }
 
   useEffect(() => {
-    const volvioDeGoogle = manejarCallbackDrive()
-    if (volvioDeGoogle) {
-      addLog("Drive: autenticación completada", "ok")
-      setDriveConectado(true)
-      hacerSyncDrive()
-    }
-
     if (tokenGuardado()) {
       addLog("Drive: token guardado encontrado", "ok")
       setDriveConectado(true)
@@ -91,26 +83,6 @@ export default function Ajustes() {
       hacerSyncDropbox()
     }
   }, [])
-
-  // ── NIVEL ──────────────────────────────────────────────────────────────────
-
-  function cambiarNivel(nuevoNivel) {
-    const nuevosDatos = {
-      ...datos,
-      config: { ...datos.config, nivelSeguimiento: nuevoNivel }
-    }
-    actualizarDatos(nuevosDatos)
-  }
-
-  // ── PAÍS ───────────────────────────────────────────────────────────────────
-
-  function cambiarPais(nuevoPais) {
-    const nuevosDatos = {
-      ...datos,
-      config: { ...datos.config, pais: nuevoPais }
-    }
-    actualizarDatos(nuevosDatos)
-  }
 
   // ── DRIVE ──────────────────────────────────────────────────────────────────
 
@@ -246,8 +218,8 @@ export default function Ajustes() {
       await exportarBackupPrevio()
       addLog("Mantenimiento: backup exportado OK", "ok")
 
-      const { datosPurgados, totalPurgados } = purgarDatos(datosRef.current, anioPurga + 1)
-      addLog(`Mantenimiento: ${totalPurgados} registros compactados`, "ok")
+      const { datosPurgados, resumen } = purgarDatos(datosRef.current, anioPurga + 1)
+      addLog(`Mantenimiento: ${resumen.total} registros compactados`, "ok")
 
       actualizarDatos(datosPurgados)
 
@@ -265,7 +237,7 @@ export default function Ajustes() {
         addLog("Mantenimiento: sin conexión, sync pendiente para la próxima vez", "info")
       }
 
-      setResultadoPurga(totalPurgados)
+      setResultadoPurga(resumen.total)
       setEstadoPurga("ok")
     } catch (e) {
       addLog(`Mantenimiento: error durante la purga: ${e?.message || JSON.stringify(e)}`, "error")
@@ -276,42 +248,42 @@ export default function Ajustes() {
   // ── HELPERS ────────────────────────────────────────────────────────────────
 
   function textoEstado(estado, ultimaSync) {
-    if (estado === "syncing") return "⏳ Sincronizando..."
-    if (estado === "error") return "❌ Error — toca para reintentar"
-    if (estado === "offline") return "📵 Sin conexión"
+    if (estado === "syncing") return <><Loader2 size={14} className="spin-animation" /> Sincronizando...</>
+    if (estado === "error") return <><XCircle size={14} /> Error — toca para reintentar</>
+    if (estado === "offline") return <><WifiOff size={14} /> Sin conexión</>
     if (estado === "ok" && ultimaSync) {
       const mins = Math.floor((new Date() - ultimaSync) / 60000)
-      return mins === 0 ? "✅ Sincronizado ahora mismo" : `✅ Sincronizado hace ${mins} min`
+      return <><CheckCircle2 size={14} /> {mins === 0 ? "Sincronizado ahora mismo" : `Sincronizado hace ${mins} min`}</>
     }
     return ""
   }
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
 
-  function TarjetaSync({ titulo, conectado, estado, ultimaSync, onConectar, onDesconectar, onSync }) {
+  function TarjetaSync({ titulo, icono, conectado, estado, ultimaSync, onConectar, onDesconectar, onSync }) {
     const texto = textoEstado(estado, ultimaSync)
     return (
       <div style={estiloCard}>
-        <h2 style={estiloSubtitulo}>{titulo}</h2>
+        <h2 style={{ ...estiloSubtitulo, display: "flex", alignItems: "center", gap: "8px" }}>{icono} {titulo}</h2>
         {!conectado ? (
           <button onClick={onConectar} style={{ ...estiloBotonPrimario, width: "100%" }}>
             Conectar {titulo}
           </button>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <p style={{ margin: 0, color: COLORES.exito, fontSize: "14px", fontWeight: "600" }}>
-              ✅ Conectado
+            <p style={{ margin: 0, color: COLORES.exito, fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}>
+              <CheckCircle2 size={16} /> Conectado
             </p>
             {texto !== "" && (
               <p
-                style={{ margin: 0, color: COLORES.textoSecundario, fontSize: "13px", cursor: estado === "error" ? "pointer" : "default" }}
+                style={{ margin: 0, color: COLORES.textoSecundario, fontSize: "13px", cursor: estado === "error" ? "pointer" : "default", display: "flex", alignItems: "center", gap: "6px" }}
                 onClick={estado === "error" ? onSync : undefined}
               >
                 {texto}
               </p>
             )}
-            <button onClick={onSync} style={{ ...estiloBotonPrimario, width: "100%" }} disabled={estado === "syncing"}>
-              🔄 Sincronizar ahora
+            <button onClick={onSync} style={{ ...estiloBotonPrimario, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }} disabled={estado === "syncing"}>
+              <RefreshCw size={16} /> Sincronizar ahora
             </button>
             <button onClick={onDesconectar} style={{ ...estiloBotonSecundario, width: "100%", color: COLORES.peligro, borderColor: COLORES.peligro }}>
               Desconectar cuenta
@@ -322,25 +294,51 @@ export default function Ajustes() {
     )
   }
 
-  const nivelActual = datos?.config?.nivelSeguimiento || "avanzado"
-  const paisActual  = datos?.config?.pais || "ES"
   const temaActual  = tema || "original"
 
-  const NIVELES_OPCIONES = [
-    { id: "basico", label: "🟢 Básico", items: "Ingresos · Egresos · Hacer pagos" },
-    { id: "medio", label: "🟡 Medio", items: "Todo lo anterior + Crédito · Reposiciones · Gustos · Planes" },
-    { id: "avanzado", label: "🔴 Avanzado", items: "Todo disponible" },
-  ]
-
   const TEMAS_OPCIONES = [
-  { id: "retro-flat",      label: "Claro",  desc: "Gris hueso · Bordes negros" },
-  { id: "retro-flat-dark", label: "Oscuro", desc: "Gris oscuro · Bajo contraste" },
+  { id: "retro-flat",      label: "Claro",      desc: "Gris hueso · Bordes negros" },
+  { id: "retro-flat-dark", label: "Oscuro",     desc: "Gris oscuro · Bajo contraste" },
+  { id: "blanco",          label: "Blanco",     desc: "Gris azulado · Acentos monocromos" },
+  { id: "negro-puro",      label: "Negro puro", desc: "Negros profundos · Acento lila" },
+  { id: "argentina",       label: "Argentina",  desc: "Celeste y blanco · Acentos dorados" },
   ]
 
   const aniosDisponibles = Array.from(
     { length: Math.max(1, anioActual - (anioActual - 3)) },
     (_, i) => anioActual - 1 - i
   )
+
+  function ColumnasHome() {
+    const COLUMNAS = [
+      { id: "ingresos",       label: "Ingresos",      color: "#6EC6F5" },
+      { id: "egresos",        label: "Egresos",        color: "#F57C7C" },
+      { id: "netoProvisorio", label: "Neto Prov.",     color: "#3DDC97" },
+      { id: "gastos",         label: "Ahorro/Crédito", color: "#FF9F43" },
+      { id: "netoFinal",      label: "Neto Final",     color: "#4DA3FF" },
+    ]
+    const [visibles, setVisibles] = useState(() => {
+      try { const g = localStorage.getItem("home-columnas-visibles"); if (g) return JSON.parse(g) } catch (_) {}
+      return { ingresos: true, egresos: true, netoProvisorio: false, gastos: true, netoFinal: true }
+    })
+    function toggle(id) {
+      setVisibles(prev => {
+        const nuevo = { ...prev, [id]: !prev[id] }
+        localStorage.setItem("home-columnas-visibles", JSON.stringify(nuevo))
+        return nuevo
+      })
+    }
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {COLUMNAS.map(col => (
+          <label key={col.id} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", padding: "8px 12px", borderRadius: "10px", border: `1px solid ${visibles[col.id] ? col.color + "55" : COLORES.borde}`, backgroundColor: visibles[col.id] ? col.color + "12" : "transparent" }}>
+            <input type="checkbox" checked={!!visibles[col.id]} onChange={() => toggle(col.id)} style={{ accentColor: col.color, width: "15px", height: "15px" }} />
+            <span style={{ fontSize: "14px", fontWeight: "600", color: visibles[col.id] ? col.color : COLORES.textoMuted }}>{col.label}</span>
+          </label>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div style={estiloPantalla}>
@@ -349,80 +347,20 @@ export default function Ajustes() {
       `}</style>
 
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "24px", cursor: "pointer", marginRight: "10px" }}>☰</button>
           <h1 style={estiloTitulo}>Ajustes</h1>
         </div>
 
         <div style={{ display: "grid", gap: "24px", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
 
-          {/* ── Nivel de seguimiento ── */}
-          <div style={estiloCard}>
-            <h2 style={estiloSubtitulo}>📊 Nivel de seguimiento</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {NIVELES_OPCIONES.map(({ id, label, items }) => {
-                const activo = nivelActual === id
-                return (
-                  <button
-                    key={id}
-                    onClick={() => cambiarNivel(id)}
-                    style={{
-                      ...(activo ? estiloBotonOpcionActivo : estiloBotonOpcion),
-                      display: "flex", flexDirection: "column", gap: "3px", textAlign: "left"
-                    }}
-                  >
-                    <span style={{ color: activo ? COLORES.primario : COLORES.texto, fontWeight: "700", fontSize: "14px" }}>
-                      {label}
-                    </span>
-                    <span style={{ color: activo ? COLORES.primarioOscuro : COLORES.textoSecundario, fontSize: "12px" }}>
-                      {items}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* ── País / Moneda ── */}
-          <div style={estiloCard}>
-            <h2 style={estiloSubtitulo}>🌍 País y moneda</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {[
-                { codigo: "ES", label: "🇪🇸 España",    simbolo: "€" },
-                { codigo: "AR", label: "🇦🇷 Argentina", simbolo: "$" },
-              ].map(({ codigo, label, simbolo }) => {
-                const activo = paisActual === codigo
-                return (
-                  <button
-                    key={codigo}
-                    onClick={() => cambiarPais(codigo)}
-                    style={{
-                      ...(activo ? estiloBotonOpcionActivo : estiloBotonOpcion),
-                      display: "flex", alignItems: "center", justifyContent: "space-between"
-                    }}
-                  >
-                    <span style={{ color: activo ? COLORES.primario : COLORES.texto, fontWeight: "600", fontSize: "15px" }}>
-                      {label}
-                    </span>
-                    <span style={{ color: activo ? COLORES.primario : COLORES.textoSecundario, fontSize: "20px", fontWeight: "700" }}>
-                      {simbolo}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
           {/* ── Tema visual ── */}
           <div style={estiloCard}>
-            <h2 style={estiloSubtitulo}>🎨 Tema visual</h2>
+            <h2 style={{ ...estiloSubtitulo, display: "flex", alignItems: "center", gap: "8px" }}><Palette size={18} /> Tema visual</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {TEMAS_OPCIONES.map(({ id, label, desc }) => {
                 const activo = temaActual === id
@@ -456,7 +394,8 @@ export default function Ajustes() {
           </div>
 
           <TarjetaSync
-            titulo="☁️ Google Drive"
+            titulo="Google Drive"
+            icono={<Cloud size={18} />}
             conectado={driveConectado}
             estado={driveEstado}
             ultimaSync={driveUltimaSync}
@@ -466,7 +405,8 @@ export default function Ajustes() {
           />
 
           <TarjetaSync
-            titulo="📦 Dropbox"
+            titulo="Dropbox"
+            icono={<Package size={18} />}
             conectado={dropboxConectado}
             estado={dropboxEstado}
             ultimaSync={dropboxUltimaSync}
@@ -480,9 +420,18 @@ export default function Ajustes() {
             <Backup />
           </div>
 
+          <div style={estiloCard}>
+            <h2 style={{ ...estiloSubtitulo, display: "flex", alignItems: "center", gap: "8px" }}><BarChart2 size={18} /> Columnas del inicio</h2>
+            <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.textoSecundario }}>
+              Elegí qué columnas se muestran en la tabla de los 12 meses.
+            </p>
+            <ColumnasHome />
+          </div>
+
+
           {/* ── Mantenimiento ── */}
           <div style={estiloCard}>
-            <h2 style={estiloSubtitulo}>🗑️ Mantenimiento</h2>
+            <h2 style={{ ...estiloSubtitulo, display: "flex", alignItems: "center", gap: "8px" }}><Trash2 size={18} /> Mantenimiento</h2>
 
             <p style={{ margin: "0 0 16px", fontSize: "13px", color: COLORES.textoSecundario, lineHeight: "1.5" }}>
               Elimina registros históricos cerrados del año seleccionado para reducir
@@ -498,6 +447,7 @@ export default function Ajustes() {
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 {aniosDisponibles.map(anio => {
                   const activo = anioPurga === anio
+                  
                   return (
                     <button
                       key={anio}
@@ -542,13 +492,13 @@ export default function Ajustes() {
 
             {/* Resultado de la última purga */}
             {estadoPurga === "ok" && resultadoPurga !== null && (
-              <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.exito, fontWeight: "600" }}>
-                ✅ {resultadoPurga} registros eliminados correctamente.
+              <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.exito, fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}>
+                <CheckCircle2 size={16} /> {resultadoPurga} registros eliminados correctamente.
               </p>
             )}
             {estadoPurga === "error" && (
-              <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.peligro }}>
-                ❌ Error durante la purga. Revisa los logs.
+              <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.peligro, display: "flex", alignItems: "center", gap: "6px" }}>
+                <XCircle size={16} /> Error durante la purga. Revisa los logs.
               </p>
             )}
 
@@ -563,14 +513,15 @@ export default function Ajustes() {
                   color: COLORES.advertencia,
                   borderColor: COLORES.advertencia,
                   opacity: estadoPurga === "purgando" ? 0.6 : 1,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
                 }}
               >
-                {estadoPurga === "purgando" ? "⏳ Purgando..." : `🗑️ Purgar año ${anioPurga}`}
+                {estadoPurga === "purgando" ? <><Loader2 size={16} className="spin-animation" /> Purgando...</> : <><Trash2 size={16} /> Purgar año {anioPurga}</>}
               </button>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <p style={{ margin: 0, fontSize: "13px", color: COLORES.advertencia, fontWeight: "600", textAlign: "center" }}>
-                  ⚠️ Se exportará un backup y se eliminarán los registros. ¿Continuar?
+                <p style={{ margin: 0, fontSize: "13px", color: COLORES.advertencia, fontWeight: "600", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                  <AlertTriangle size={16} /> Se exportará un backup y se eliminarán los registros. ¿Continuar?
                 </p>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
@@ -599,7 +550,7 @@ export default function Ajustes() {
 
         <div style={{ ...estiloCard, marginTop: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <h2 style={{ ...estiloSubtitulo, margin: 0 }}>🔍 Logs</h2>
+            <h2 style={{ ...estiloSubtitulo, margin: 0, display: "flex", alignItems: "center", gap: "8px" }}><Search size={18} /> Logs</h2>
             <button onClick={() => setLogMessages([])} style={{ background: "none", border: `1px solid ${COLORES.borde}`, color: COLORES.textoSecundario, fontSize: "12px", padding: "4px 10px", borderRadius: "6px", cursor: "pointer" }}>Limpiar</button>
           </div>
           <div style={{ maxHeight: "220px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px" }}>

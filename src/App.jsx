@@ -9,7 +9,7 @@ import AppRoot from "./app/AppRoot"
 
 export default function App() {
   const location = useLocation()
-  const enApp = location.pathname.startsWith("/app")
+  const enApp = location.pathname.startsWith("/app") || location.pathname === "/oauth"
 
   return (
     <div style={{ minHeight: "100vh", background: "transparent", color: "#fff" }}>

@@ -8,6 +8,7 @@ import DrawerMenu from "../components/DrawerMenu"
 import WizardModal from "../components/WizardModal"
 import { COLORES, estilos } from "../theme"
 import { NOMBRES_MESES } from "../services/formateo"
+import { RefreshCw, Zap, Info, TrendingUp, Calendar, Pencil, Trash2, Check, Save, ChevronUp, ChevronDown, ArrowRight } from "lucide-react"
 
 function generarAnios(desde = 0, cantidad = 10) {
   const base = new Date().getFullYear()
@@ -22,11 +23,11 @@ const PASO_TIPO = {
   titulo: "¿Qué tipo de inversión?",
   contenido: (s, set) => (
     <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
-      {[["recurrente", "🔁 Recurrente"], ["puntual", "⚡ Puntual"]].map(([t, label]) => (
+      {[["recurrente", <><RefreshCw size={15} /> Recurrente</>], ["puntual", <><Zap size={15} /> Puntual</>]].map(([t, label]) => (
         <button
           key={t}
           onClick={() => set(p => ({ ...p, tipo: t }))}
-          style={s.tipo === t ? estilos.estiloBotonOpcionActivo : estilos.estiloBotonOpcion}
+          style={{ ...(s.tipo === t ? estilos.estiloBotonOpcionActivo : estilos.estiloBotonOpcion), display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
         >
           {label}
         </button>
@@ -184,7 +185,7 @@ function pasosEdicion() {
             padding: "12px", border: `1px solid ${COLORES.bordePanel}`,
             marginTop: "4px",
           }}>
-            <span style={{ fontSize: "16px", marginTop: "1px" }}>ℹ️</span>
+            <Info size={16} style={{ marginTop: "1px", flexShrink: 0, color: COLORES.neutro }} />
             <span style={{ fontSize: "12px", color: COLORES.neutro, lineHeight: "1.5" }}>
               La inversión anterior quedará cerrada el mes previo al inicio de la nueva. El historial se conserva.
             </span>
@@ -233,8 +234,6 @@ function pasosAsignarFin() {
 export default function Inversiones() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
-
   const { datos, actualizarDatos, fmt } = useDatos()
   const hoy = new Date()
   const HOY_MES = hoy.getMonth() + 1
@@ -414,36 +413,28 @@ export default function Inversiones() {
       : `Fecha de fin: ${itemEditando?.nombre}`
 
   const labelFinal = wizardModo === "nuevo"
-    ? "✓ Guardar"
+    ? <><Check size={16} /> Guardar</>
     : wizardModo === "editar"
-      ? "💾 Aplicar cambio"
-      : "✓ Confirmar"
+      ? <><Save size={16} /> Aplicar cambio</>
+      : <><Check size={16} /> Confirmar</>
 
   return (
     <div style={estilos.estiloPantalla}>
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeIn 0.35s ease" }}>
         <div style={estilos.estiloHeader}>
-          <button
-            onClick={() => setMenuAbierto(true)}
-            style={{ background: "none", border: "none", fontSize: "24px", marginRight: "10px", cursor: "pointer", color: COLORES.primario }}
-          >
-            ☰
-          </button>
-          <h1 style={estilos.estiloTitulo}>📈 Inversiones</h1>
+          <h1 style={{ ...estilos.estiloTitulo, display: "flex", alignItems: "center", gap: "8px" }}><TrendingUp size={20} /> Inversiones</h1>
         </div>
 
         <button
           onClick={abrirNuevo}
-          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px" }}
+          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
         >
-          📈 + Nueva inversión 📈
+          <TrendingUp size={16} /> Nueva inversión
         </button>
 
         {/* Listado */}
@@ -482,16 +473,16 @@ export default function Inversiones() {
                       </span>
                       <div style={{ textAlign: "left" }}>
                         <div style={{ fontSize: "15px", fontWeight: "600", color: COLORES.textoBlanco }}>{item.nombre}</div>
-                        <div style={{ fontSize: "12px", color: COLORES.textoSecundario, marginTop: "2px" }}>
+                        <div style={{ fontSize: "12px", color: COLORES.textoSecundario, marginTop: "2px", display: "flex", alignItems: "center", gap: "4px" }}>
                           {item._inicioTexto}
-                          {item._tipo === "recurrente" && ` → ${item._finTexto}`}
+                          {item._tipo === "recurrente" && <><ArrowRight size={11} /> {item._finTexto}</>}
                         </div>
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "16px", fontWeight: "700", color: COLORES.positivo }}>{fmt(item.monto)}</div>
-                      <div style={{ fontSize: "12px", color: activo ? COLORES.primario : COLORES.textoSecundario, marginTop: "2px" }}>
-                        {activo ? "▲" : "▼"}
+                      <div style={{ fontSize: "12px", color: activo ? COLORES.primario : COLORES.textoSecundario, marginTop: "2px", display: "flex", justifyContent: "flex-end" }}>
+                        {activo ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </div>
                     </div>
                   </button>
@@ -514,9 +505,10 @@ export default function Inversiones() {
                             cursor: "pointer", fontWeight: "600",
                             background: COLORES.fondoPanel, color: COLORES.advertencia,
                             border: `1px solid ${COLORES.advertencia}`,
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                           }}
                         >
-                          📅 Fecha de fin
+                          <Calendar size={14} /> Fecha de fin
                         </button>
                       )}
                       <button
@@ -526,9 +518,10 @@ export default function Inversiones() {
                           cursor: "pointer", fontWeight: "600",
                           background: COLORES.primarioSuave, color: COLORES.primario,
                           border: `1px solid ${COLORES.primario}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        ✏️ Editar
+                        <Pencil size={14} /> Editar
                       </button>
                       <button
                         onClick={() => setConfirmarEliminarId(item.id)}
@@ -537,9 +530,10 @@ export default function Inversiones() {
                           cursor: "pointer", fontWeight: "600",
                           background: COLORES.fondoPanel, color: COLORES.peligro,
                           border: `1px solid ${COLORES.peligro}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        🗑️ Eliminar
+                        <Trash2 size={14} /> Eliminar
                       </button>
                     </div>
                   )}

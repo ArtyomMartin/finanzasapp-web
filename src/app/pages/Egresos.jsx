@@ -9,6 +9,7 @@ import WizardModal from "../components/WizardModal"
 import { lunesEnMes, montoEgresoMes, indiceMes } from "../services/calculos"
 import { COLORES, estilos } from "../theme"
 import { NOMBRES_MESES } from "../services/formateo"
+import { Calendar, CalendarDays, Info, Banknote, Pencil, Trash2, Check, Save, ChevronUp, ChevronDown, ArrowRight } from "lucide-react"
 
 const HOY = new Date()
 const MES_HOY = HOY.getMonth() + 1
@@ -28,11 +29,11 @@ const PASO_FRECUENCIA = {
   contenido: (s, set) => (
     <>
       <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
-        {[["m", "📅 Mensual"], ["s", "📆 Semanal"]].map(([val, label]) => (
+        {[["m", <><Calendar size={15} /> Mensual</>], ["s", <><CalendarDays size={15} /> Semanal</>]].map(([val, label]) => (
           <button
             key={val}
             onClick={() => set(p => ({ ...p, frecuencia: val }))}
-            style={s.frecuencia === val ? estilos.estiloBotonOpcionActivo : estilos.estiloBotonOpcion}
+            style={{ ...(s.frecuencia === val ? estilos.estiloBotonOpcionActivo : estilos.estiloBotonOpcion), display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
           >
             {label}
           </button>
@@ -224,7 +225,7 @@ function pasosEdicion() {
             padding: "12px", border: `1px solid ${COLORES.bordePanel}`,
             marginTop: "4px",
           }}>
-            <span style={{ fontSize: "16px", marginTop: "1px" }}>ℹ️</span>
+            <Info size={16} style={{ marginTop: "1px", flexShrink: 0, color: COLORES.neutro }} />
             <span style={{ fontSize: "12px", color: COLORES.neutro, lineHeight: "1.5" }}>
               El egreso anterior quedará cerrado el mes previo al inicio del nuevo. El historial se conserva.
             </span>
@@ -276,8 +277,6 @@ function pasosAsignarFin() {
 export default function Egresos() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
-
   const { datos, actualizarDatos, fmt } = useDatos()
 
   const { mes: mesDefecto, anio: anioDefecto } = mesSiguiente()
@@ -455,36 +454,28 @@ export default function Egresos() {
       : `Fecha de fin: ${egresoEditando?.nombre}`
 
   const labelFinal = wizardModo === "nuevo"
-    ? "✓ Guardar"
+    ? <><Check size={16} /> Guardar</>
     : wizardModo === "editar"
-      ? "💾 Aplicar cambio"
-      : "✓ Confirmar"
+      ? <><Save size={16} /> Aplicar cambio</>
+      : <><Check size={16} /> Confirmar</>
 
   return (
     <div style={estilos.estiloPantalla}>
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeIn 0.35s ease" }}>
         <div style={estilos.estiloHeader}>
-          <button
-            onClick={() => setMenuAbierto(true)}
-            style={{ background: "none", border: "none", fontSize: "24px", marginRight: "10px", cursor: "pointer", color: COLORES.primario }}
-          >
-            ☰
-          </button>
-          <h1 style={estilos.estiloTitulo}>💸 Egresos fijos</h1>
+          <h1 style={{ ...estilos.estiloTitulo, display: "flex", alignItems: "center", gap: "8px" }}><Banknote size={20} /> Egresos fijos</h1>
         </div>
 
         <button
           onClick={abrirNuevo}
-          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px" }}
+          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
         >
-          💸 + Nuevo egreso 💸
+          <Banknote size={16} /> Nuevo egreso
         </button>
 
         {/* Listado */}
@@ -525,8 +516,8 @@ export default function Egresos() {
                       </span>
                       <div style={{ textAlign: "left" }}>
                         <div style={{ fontSize: "15px", fontWeight: "600", color: COLORES.textoBlanco }}>{e.nombre}</div>
-                        <div style={{ fontSize: "12px", color: COLORES.textoSecundario, marginTop: "2px" }}>
-                          {NOMBRES_MESES[e.mesInicio - 1]} {e.anioInicio} → {labelFin(e)}
+                        <div style={{ fontSize: "12px", color: COLORES.textoSecundario, marginTop: "2px", display: "flex", alignItems: "center", gap: "4px" }}>
+                          {NOMBRES_MESES[e.mesInicio - 1]} {e.anioInicio} <ArrowRight size={12} /> {labelFin(e)}
                         </div>
                         {esSemanal && (
                           <div style={{ fontSize: "11px", color: COLORES.advertencia, marginTop: "2px" }}>
@@ -537,8 +528,8 @@ export default function Egresos() {
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "16px", fontWeight: "700", color: COLORES.negativo }}>{fmt(total)}</div>
-                      <div style={{ fontSize: "12px", color: sel ? COLORES.primario : COLORES.textoSecundario, marginTop: "2px" }}>
-                        {sel ? "▲" : "▼"}
+                      <div style={{ fontSize: "12px", color: sel ? COLORES.primario : COLORES.textoSecundario, marginTop: "2px", display: "flex", justifyContent: "flex-end" }}>
+                        {sel ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </div>
                     </div>
                   </button>
@@ -560,9 +551,10 @@ export default function Egresos() {
                           cursor: "pointer", fontWeight: "600",
                           background: COLORES.fondoPanel, color: COLORES.advertencia,
                           border: `1px solid ${COLORES.advertencia}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        📅 Fecha de fin
+                        <Calendar size={14} /> Fecha de fin
                       </button>
                       <button
                         onClick={() => abrirEditar(e)}
@@ -571,9 +563,10 @@ export default function Egresos() {
                           cursor: "pointer", fontWeight: "600",
                           background: COLORES.primarioSuave, color: COLORES.primario,
                           border: `1px solid ${COLORES.primario}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        ✏️ Editar
+                        <Pencil size={14} /> Editar
                       </button>
                       <button
                         onClick={() => setConfirmarEliminarItem(e)}
@@ -582,9 +575,10 @@ export default function Egresos() {
                           cursor: "pointer", fontWeight: "600",
                           background: COLORES.fondoPanel, color: COLORES.peligro,
                           border: `1px solid ${COLORES.peligro}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        🗑️ Eliminar
+                        <Trash2 size={14} /> Eliminar
                       </button>
                     </div>
                   )}

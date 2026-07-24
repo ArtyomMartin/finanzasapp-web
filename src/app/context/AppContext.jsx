@@ -1,29 +1,16 @@
-// AppContext.jsx — refactorizado
+// AppContext.jsx
 // fmt ahora viene de src/services/formateo.js
 
 import { createContext, useContext, useState, useEffect, useRef } from "react"
 import { tokenGuardadoDropbox, sincronizarDropbox } from "../services/dropboxSync"
-import { tokenGuardado, sincronizar, mergeDatos } from "../services/driveSync"
+import { tokenGuardado, sincronizar, mergeDatos, renovarSesionDrive } from "../services/driveSync"
 import { fmt as fmtBase } from "../services/formateo"
 import { aplicarTema } from "../theme/colores"
 
 const AppContext = createContext()
 
 export const PAISES = {
-  ES: { nombre: "España", simbolo: "€", locale: "es-ES", label: "🇪🇸 España" },
-  AR: { nombre: "Argentina", simbolo: "$", locale: "es-AR", label: "🇦🇷 Argentina" },
-}
-
-export const NIVELES = {
-  basico:   { label: "Básico",   descripcion: "Ingresos, egresos y pagos" },
-  medio:    { label: "Medio",    descripcion: "+ Crédito, reposiciones, gustos y planes" },
-  avanzado: { label: "Avanzado", descripcion: "Todo disponible" },
-}
-
-export const RUTAS_POR_NIVEL = {
-  basico:   ["/", "/ingresos", "/egresos", "/hacer-pagos", "/ajustes"],
-  medio:    ["/", "/ingresos", "/egresos", "/hacer-pagos", "/credito", "/detalle-gastos", "/reposicion", "/gustos", "/planes", "/ajustes"],
-  avanzado: null,
+  ES: { nombre: "España", simbolo: "€", locale: "es-ES", label: "España" },
 }
 
 const ESTRUCTURA_BASE = {
@@ -154,7 +141,7 @@ export function AppProvider({ children }) {
           setSyncInicialEstado("ok")
           return
         }
-        if (tokenGuardado()) {
+        if (tokenGuardado() && await renovarSesionDrive()) {
           await sincronizar(datosIniciales, actualizarDatos)
           setSyncInicialEstado("ok")
           return
@@ -177,7 +164,7 @@ export function AppProvider({ children }) {
   function cambiarTema(nuevoTema) {
     const nuevosDatos = {
       ...datos,
-      config: { ...datos.config, tema: nuevoTema }
+      config: { ...datos.config, tema: nuevoTema, actualizadoEn: new Date().toISOString() }
     }
     actualizarDatos(nuevosDatos)
   }
@@ -201,14 +188,7 @@ export function AppProvider({ children }) {
     return fmtBase(n, locale, simbolo)
   }
 
-  const nivel = datos?.config?.nivelSeguimiento || "avanzado"
   const tema  = datos?.config?.tema || "original"
-
-  function rutaPermitida(ruta) {
-    const permitidas = RUTAS_POR_NIVEL[nivel]
-    if (permitidas === null) return true
-    return permitidas.includes(ruta)
-  }
 
   return (
     <AppContext.Provider value={{
@@ -216,7 +196,6 @@ export function AppProvider({ children }) {
       usuarioActivo, setUsuarioActivo,
       hayDB,
       simbolo, locale, fmt,
-      nivel, rutaPermitida,
       paisInfo,
       syncInicialEstado,
       tema, cambiarTema,

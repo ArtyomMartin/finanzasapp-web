@@ -1,4 +1,5 @@
 // AppRoot.jsx para la web
+// Puerto de src/App.jsx de finanzas-app, montado bajo el prefijo "/app"
 
 import { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
@@ -22,14 +23,15 @@ import FondoEmergencia from "./pages/FondoEmergencia"
 import { useDatos } from "./context/AppContext"
 import { App as CapacitorApp } from "@capacitor/app"
 import { procesarCallbackDropboxWeb, tokenGuardadoDropbox, iniciarAuthDropbox, sincronizarDropbox } from "./services/dropboxSync"
-import { tokenGuardado, sincronizar, mergeDatos } from "./services/driveSync"
+import { tokenGuardado, sincronizar, mergeDatos, iniciarAuth } from "./services/driveSync"
 import Consejos from "./pages/Consejos"
 import DrawerMenu from "./components/DrawerMenu"
 import WizardModal from "./components/WizardModal"
+import { nombreMes, nombreMesCorto } from "./services/formateo"
+import { Cloud, CloudOff, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Wallet, Settings, Package, Loader2, User, X, ArrowLeft, Check } from "lucide-react";
 
 // ── Servicios de lógica ────────────────────────────────────────────────────
 import { calcularMes, calcularDetalleGastos, proximosMeses, calcularIngresosTotales, calcularEgresosTotales } from "./services/calculos"
-import { nombreMes } from "./services/formateo"
 
 // ── Tema visual ────────────────────────────────────────────────────────────
 import { COLORES } from "./theme/colores"
@@ -59,26 +61,29 @@ const SyncIndicator = ({ status, onClick }) => {
     position: "fixed", top: "12px", right: "16px", zIndex: 9999,
     display: "flex", alignItems: "center", gap: "6px",
     padding: "8px 12px", borderRadius: "20px",
-    backgroundColor: "rgba(22, 26, 32, 0.95)", backdropFilter: "blur(10px)",
-    border: `1px solid rgba(255,255,255,0.1)`,
-    fontSize: "13px", fontWeight: "600", color: "#fff",
+    backgroundColor: COLORES.fondoTarjeta, backdropFilter: "blur(10px)",
+    border: `1px solid ${COLORES.bordeBlanco}`,
+    fontSize: "13px", fontWeight: "600", color: COLORES.texto,
     cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.3)", transition: "all 0.3s ease",
   }
   if (status === "off") {
-    return <div style={{ ...baseStyle, color: COLORES.textoMuted, borderColor: "rgba(255,255,255,0.05)" }} onClick={onClick} title="Conectar nube"><span style={{ fontSize: "16px" }}>☁️❌</span></div>
+    return (
+      <div style={{ ...baseStyle, color: COLORES.textoMuted, borderColor: "rgba(255,255,255,0.05)" }} onClick={onClick} title="Conectar nube">
+        <CloudOff size={16} />
+      </div>
+    )
   }
   const config = {
-    idle:    { icon: <span style={{ fontSize: "16px" }}>☁️</span>,                                                     text: "",       color: COLORES.acento    },
-    syncing: { icon: <span className="spin-animation" style={{ fontSize: "16px", display: "inline-block" }}>🔄</span>, text: "Sync...", color: COLORES.acento    },
-    success: { icon: <span style={{ fontSize: "16px" }}>✅</span>,                                                     text: "Al día", color: COLORES.syncOk    },
-    error:   { icon: <span style={{ fontSize: "16px" }}>⚠️</span>,                                                     text: "Error",  color: COLORES.syncError  },
+    idle:    { icon: <Cloud size={16} />,                                                  text: "",        color: COLORES.acento    },
+    syncing: { icon: <RefreshCw size={16} className="spin-animation" />,                   text: "Sync...", color: COLORES.acento    },
+    success: { icon: <CheckCircle2 size={16} />,                                           text: "Al día",  color: COLORES.syncOk    },
+    error:   { icon: <AlertTriangle size={16} />,                                          text: "Error",   color: COLORES.syncError  },
   }
   const current = config[status] || config.idle
   return (
     <div style={{ ...baseStyle, color: current.color, borderColor: current.color + "44" }} onClick={onClick} title="Sincronizar ahora">
       {current.icon}
       {current.text && <span>{current.text}</span>}
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } .spin-animation { animation: spin 1.5s linear infinite; }`}</style>
     </div>
   )
 }
@@ -95,7 +100,7 @@ function DropboxOAuthCallback() {
       if (!tokenOk) { setEstado("error"); return }
       try {
         await sincronizarDropbox({}, actualizarDatos, (_local, remoto) => remoto)
-        navigate("/", { replace: true })
+        navigate("/app", { replace: true })
       } catch (e) {
         console.error("Error sync post-OAuth Dropbox:", e)
         setEstado("error")
@@ -105,11 +110,13 @@ function DropboxOAuthCallback() {
   }, [])
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: COLORES.textoBlanco, background: "#0f1115", gap: "16px" }}>
-      {estado === "syncing" ? <p>⏳ Descargando datos de Dropbox...</p> : (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: COLORES.textoBlanco, background: COLORES.fondoApp, gap: "16px" }}>
+      {estado === "syncing" ? (
+        <p style={{ display: "flex", alignItems: "center", gap: "8px" }}><Loader2 size={18} className="spin-animation" /> Descargando datos de Dropbox...</p>
+      ) : (
         <>
-          <p style={{ color: COLORES.peligro }}>❌ Error al conectar. Inténtalo de nuevo.</p>
-          <button onClick={() => navigate("/", { replace: true })} style={{ color: COLORES.acento, background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}>← Volver al inicio</button>
+          <p style={{ color: COLORES.peligro, display: "flex", alignItems: "center", gap: "8px" }}><XCircle size={18} /> Error al conectar. Inténtalo de nuevo.</p>
+          <button onClick={() => navigate("/app", { replace: true })} style={{ color: COLORES.acento, background: "none", border: "none", cursor: "pointer", fontSize: "16px", display: "flex", alignItems: "center", gap: "6px" }}><ArrowLeft size={16} /> Volver al inicio</button>
         </>
       )}
     </div>
@@ -117,36 +124,59 @@ function DropboxOAuthCallback() {
 }
 
 // ── PANTALLA BIENVENIDA ────────────────────────────────────────────────────
-function PantallaBienvenida({ onConfigurar, onSincronizarDropbox, dropboxEstado }) {
+function PantallaBienvenida({ onConfigurar, onSincronizarDropbox, dropboxEstado, onSincronizarDrive, driveEstado }) {
   return (
     <div style={estiloPantalla}>
       <style>{`@keyframes fadeSlideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }`}</style>
       <div style={{ ...estiloBox, animation: "fadeSlideUp 0.4s ease" }}>
-        <div style={{ fontSize: "48px", marginBottom: "12px" }}>💰</div>
+        <Wallet size={48} color={COLORES.primario} style={{ marginBottom: "12px" }} />
         <h1 style={estiloTitulo}>FinanzasApp</h1>
         <p style={estiloSubtitulo}>No se encontró ninguna base de datos local.</p>
         <p style={estiloSubtitulo}>¿Cómo querés continuar?</p>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "8px" }}>
-          <button onClick={onConfigurar} style={estiloBotonPrimario}>⚙️ Configuración inicial</button>
+          <button onClick={onConfigurar} style={{ ...estiloBotonPrimario, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}><Settings size={16} /> Configuración inicial</button>
           <button
             onClick={onSincronizarDropbox}
             disabled={dropboxEstado === "syncing" || dropboxEstado === "auth"}
             style={{
               ...estiloBotonPrimario,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
               backgroundColor: "rgba(0, 100, 255, 0.20)",
               border: "1px solid rgba(0, 120, 255, 0.4)",
               color: "#7EB8FF",
               opacity: (dropboxEstado === "syncing" || dropboxEstado === "auth") ? 0.6 : 1,
             }}
           >
-            {dropboxEstado === "auth"    ? "⏳ Autenticando..."     :
-             dropboxEstado === "syncing" ? "⏳ Descargando datos..." :
-             dropboxEstado === "error"   ? "❌ Error — reintentar"   :
-             "📦 Sincronizar con Dropbox"}
+            {dropboxEstado === "auth"    ? <><Loader2 size={16} className="spin-animation" /> Autenticando...</>     :
+             dropboxEstado === "syncing" ? <><Loader2 size={16} className="spin-animation" /> Descargando datos...</> :
+             dropboxEstado === "error"   ? <><XCircle size={16} /> Error — reintentar</>   :
+             <><Package size={16} /> Sincronizar con Dropbox</>}
+          </button>
+          <button
+            onClick={onSincronizarDrive}
+            disabled={driveEstado === "syncing" || driveEstado === "auth"}
+            style={{
+              ...estiloBotonPrimario,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+              backgroundColor: "rgba(66, 133, 244, 0.20)",
+              border: "1px solid rgba(66, 133, 244, 0.4)",
+              color: "#8AB4F8",
+              opacity: (driveEstado === "syncing" || driveEstado === "auth") ? 0.6 : 1,
+            }}
+          >
+            {driveEstado === "auth"    ? <><Loader2 size={16} className="spin-animation" /> Autenticando...</>     :
+             driveEstado === "syncing" ? <><Loader2 size={16} className="spin-animation" /> Descargando datos...</> :
+             driveEstado === "error"   ? <><XCircle size={16} /> Error — reintentar</>   :
+             <><Cloud size={16} /> Sincronizar con Google Drive</>}
           </button>
           {dropboxEstado === "error" && (
             <p style={{ margin: 0, fontSize: "13px", color: COLORES.peligro, textAlign: "center" }}>
               No se pudo conectar. Comprobá tu cuenta e intentalo de nuevo.
+            </p>
+          )}
+          {driveEstado === "error" && (
+            <p style={{ margin: 0, fontSize: "13px", color: COLORES.peligro, textAlign: "center" }}>
+              No se pudo conectar con Google Drive. Intentalo de nuevo.
             </p>
           )}
         </div>
@@ -156,17 +186,6 @@ function PantallaBienvenida({ onConfigurar, onSincronizarDropbox, dropboxEstado 
 }
 
 // ── WIZARD DE INICIO ───────────────────────────────────────────────────────
-// Los pasos se definen como funciones puras fuera del componente.
-// El state vive en PantallaWizard y se pasa a WizardModal → los pasos
-// se recalculan en cada render, permitiendo ramificaciones dinámicas.
-
-const NIVELES_OPCIONES = [
-  { id: "basico",   label: "🟢 Básico",   items: "Ingresos · Egresos · Hacer pagos",                             detalle: "Para llevar un control simple de lo que entra y sale."     },
-  { id: "medio",    label: "🟡 Medio",    items: "Todo lo anterior + Crédito · Reposiciones · Gustos · Planes", detalle: "Para quienes ya llevan un registro activo de sus finanzas." },
-  { id: "avanzado", label: "🔴 Avanzado", items: "Todo disponible",                                              detalle: "Inversiones, rendimientos, fondo de emergencia y más."      },
-]
-
-// Cada función recibe (state, setState) y devuelve JSX
 const PASO_USUARIOS = {
   titulo: "¿Cuántos usuarios usarán la app?",
   contenido: (s, set) => (
@@ -210,69 +229,33 @@ const PASO_REPARTO = {
   ),
 }
 
-const PASO_PAIS = {
-  titulo: "¿En qué país vivís?",
-  contenido: (s, set) => (
-    <>
-      <p style={{ ...estiloAyuda, marginBottom: "12px" }}>Esto define la moneda y el formato de cantidades.</p>
-      {[{ codigo: "ES", label: "🇪🇸 España", simbolo: "€" }, { codigo: "AR", label: "🇦🇷 Argentina", simbolo: "$" }].map(({ codigo, label, simbolo }) => (
-        <button key={codigo} style={{ ...estiloBotonOpcion, marginBottom: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", ...(s.pais === codigo ? estiloBotonOpcionActivo : {}) }} onClick={() => set(p => ({ ...p, pais: codigo }))}>
-          <span style={{ fontWeight: "600" }}>{label}</span>
-          <span style={{ fontSize: "20px", fontWeight: "700", color: s.pais === codigo ? COLORES.acento : COLORES.textoMuted }}>{simbolo}</span>
-        </button>
-      ))}
-    </>
-  ),
-}
-
-const PASO_NIVEL = {
-  titulo: "¿Qué nivel de detalle querés?",
-  contenido: (s, set) => (
-    <>
-      <p style={{ ...estiloAyuda, marginBottom: "12px" }}>Podés cambiarlo cuando quieras desde Ajustes.</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {NIVELES_OPCIONES.map(({ id, label, items, detalle }) => (
-          <button key={id} style={{ ...estiloBotonOpcion, display: "flex", flexDirection: "column", alignItems: "flex-start", padding: "14px 16px", ...(s.nivel === id ? estiloBotonOpcionActivo : {}) }} onClick={() => set(p => ({ ...p, nivel: id }))}>
-            <span style={{ fontWeight: "700", fontSize: "15px" }}>{label}</span>
-            <span style={{ fontSize: "12px", color: s.nivel === id ? COLORES.acento : COLORES.textoMuted, marginTop: "4px", lineHeight: "1.4" }}>{items}</span>
-            <span style={{ fontSize: "11px", color: s.nivel === id ? "#8A70D6" : "#555D6B", marginTop: "3px", fontStyle: "italic" }}>{detalle}</span>
-          </button>
-        ))}
-      </div>
-    </>
-  ),
-}
-
 function PantallaWizard({ onFinalizar }) {
-  const [wiz, setWiz] = useState({ numUsuarios: 2, nombre1: "", nombre2: "", reparto: "igual", pais: "ES", nivel: "medio" })
+  const [wiz, setWiz] = useState({ numUsuarios: 2, nombre1: "", nombre2: "", reparto: "igual" })
 
-  // Pasos dinámicos: el paso de reparto solo aparece si hay 2 usuarios.
-  // Al cambiar numUsuarios en el paso 1, los pasos se recalculan automáticamente
-  // en el siguiente render, y WizardModal ajusta el índice si quedara fuera de rango.
   const pasos = [
     PASO_USUARIOS,
     PASO_NOMBRES,
     ...(wiz.numUsuarios === 2 ? [PASO_REPARTO] : []),
-    PASO_PAIS,
-    PASO_NIVEL,
   ]
 
   function handleFin() {
     const usuarios = [{ id: "usuario1", nombre: wiz.nombre1.trim() || "Usuario 1" }]
     if (wiz.numUsuarios === 2) usuarios.push({ id: "usuario2", nombre: wiz.nombre2.trim() || "Usuario 2" })
-    onFinalizar({ version: 1, numUsuarios: wiz.numUsuarios, usuarios, reparto: wiz.reparto, pais: wiz.pais, nivelSeguimiento: wiz.nivel })
+    onFinalizar({ version: 1, numUsuarios: wiz.numUsuarios, usuarios, reparto: wiz.reparto, pais: "ES", nivelSeguimiento: "avanzado" })
   }
 
   return (
-    <WizardModal
-      pasos={pasos}
-      state={wiz}
-      setState={setWiz}
-      onFin={handleFin}
-      onCerrar={() => {}}           // wizard de inicio: no se puede cerrar
-      titulo="Configuración inicial"
-      labelFin="✓ Empezar"
-    />
+    <div style={{ ...estiloPantalla, alignItems: "center", justifyContent: "center" }}>
+      <WizardModal
+        pasos={pasos}
+        state={wiz}
+        setState={setWiz}
+        onFin={handleFin}
+        onCerrar={() => {}}
+        titulo="Configuración inicial"
+        labelFin={<><Check size={16} /> Empezar</>}
+      />
+    </div>
   )
 }
 
@@ -281,7 +264,7 @@ function PantallaQuienEres({ usuarios, onSeleccionar }) {
   return (
     <div style={{ ...estiloPantalla, alignItems: "center", justifyContent: "center" }}>
       <div style={{ ...estiloBox, animation: "fadeSlideUp 0.4s ease" }}>
-        <div style={{ fontSize: "48px", marginBottom: "12px" }}>👤</div>
+        <User size={48} color={COLORES.primario} style={{ marginBottom: "12px" }} />
         <h2 style={estiloTitulo}>¿Quién eres?</h2>
         <p style={estiloSubtitulo}>Seleccioná tu perfil para continuar</p>
         {usuarios.map(u => (
@@ -296,7 +279,6 @@ function PantallaQuienEres({ usuarios, onSeleccionar }) {
 const LS_KEY_COLUMNAS = "home-columnas-visibles"
 
 function Home() {
-  const [drawerAbierto, setDrawerAbierto] = useState(false)
   const [mesDetalle, setMesDetalle] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -360,17 +342,15 @@ function Home() {
         .col-checkbox-label:hover { background: rgba(255,255,255,0.05); }
       `}</style>
 
-      <DrawerMenu abierto={drawerAbierto} setAbierto={setDrawerAbierto} rutaActual={location.pathname} alNavegar={navigate} />
+      <DrawerMenu rutaActual={location.pathname} alNavegar={navigate} />
 
       <div style={estiloHeader}>
-        <button onClick={() => setDrawerAbierto(true)} style={{ ...estiloBotonIcono, fontSize: "24px" }}>☰</button>
         <h2 style={{ margin: 0, fontSize: "17px", fontWeight: "bold", color: COLORES.textoBlanco }}>FinanzasApp</h2>
-        <div style={{ width: "44px" }} />
       </div>
 
       {/* Tabla */}
-      <div style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto" }}>
-        <div style={{ width: "100%", padding: "20px", maxWidth: "900px", margin: "0 auto", animation: "fadeSlideUp 0.35s ease" }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", paddingBottom: "72px" }}>
+        <div style={{ width: "100%", padding: "8px 4px", maxWidth: "900px", margin: "0 auto", animation: "fadeSlideUp 0.35s ease" }}>
           <h3 style={{ fontSize: "13px", fontWeight: "600", color: COLORES.textoMuted, marginBottom: "12px", textAlign: "left", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             12 meses
           </h3>
@@ -388,7 +368,7 @@ function Home() {
                 <tbody>
                   {filas.map((fila, i) => (
                     <tr key={i} style={{ backgroundColor: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)", cursor: "pointer" }} onClick={() => setMesDetalle({ mes: fila.mes, anio: fila.anio })}>
-                      <td style={{ ...estiloTd, textAlign: "left", fontWeight: "600", color: COLORES.textoBlanco }}>{nombreMes(fila.mes)}</td>
+                      <td style={{ ...estiloTd, textAlign: "left", fontWeight: "600", color: COLORES.textoBlanco }}>{nombreMesCorto(fila.mes)}</td>
                       {columnasActivas.map(col => (
                         <td key={col.id} style={{ ...estiloTd, color: colorCelda(col.id, fila[col.id]), fontWeight: col.id === "netoFinal" ? "bold" : "normal" }}>
                           {renderCelda(col.id, fila)}
@@ -403,27 +383,13 @@ function Home() {
         </div>
       </div>
 
-      {/* Selector de columnas */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", padding: "12px 20px", display: "flex", flexWrap: "wrap", gap: "6px 4px", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: "11px", fontWeight: "600", color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", marginRight: "6px", whiteSpace: "nowrap" }}>Columnas</span>
-        {COLUMNAS_DISPONIBLES.map(col => {
-          const activa = columnasVisibles[col.id]
-          return (
-            <label key={col.id} className="col-checkbox-label" style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 10px", borderRadius: "20px", border: `1px solid ${activa ? col.color + "66" : "rgba(255,255,255,0.1)"}`, backgroundColor: activa ? col.color + "18" : "transparent", cursor: "pointer", transition: "all 0.15s ease", userSelect: "none" }}>
-              <input type="checkbox" checked={activa} onChange={() => toggleColumna(col.id)} style={{ accentColor: col.color, width: "13px", height: "13px", cursor: "pointer" }} />
-              <span style={{ fontSize: "12px", fontWeight: "600", color: activa ? col.color : COLORES.textoMuted, whiteSpace: "nowrap" }}>{col.label}</span>
-            </label>
-          )
-        })}
-      </div>
-
       {/* Bottom sheet detalle */}
       {mesDetalle && detalleData && createPortal(
         <div style={{ ...estiloPopupOverlay, animation: "fadeIn 0.2s ease" }} onClick={() => setMesDetalle(null)}>
           <div style={{ ...estiloPopup, animation: "popupIn 0.25s cubic-bezier(0.32,0.72,0,1)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px" }}>
               <span style={{ fontSize: "18px", fontWeight: "bold", color: COLORES.textoBlanco }}>{nombreMes(mesDetalle.mes)} {mesDetalle.anio}</span>
-              <button style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: COLORES.textoMuted, padding: "4px" }} onClick={() => setMesDetalle(null)}>✕</button>
+              <button style={{ background: "none", border: "none", cursor: "pointer", color: COLORES.textoMuted, padding: "4px", display: "flex" }} onClick={() => setMesDetalle(null)}><X size={18} /></button>
             </div>
             <div style={{ overflowY: "auto", flex: 1 }}>
               <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -478,6 +444,7 @@ function AppRoot() {
   const { datos, actualizarDatos, usuarioActivo, setUsuarioActivo, hayDB } = useDatos()
   const [modo, setModo] = useState(null)
   const [dropboxEstado, setDropboxEstado] = useState("idle")
+  const [driveEstado, setDriveEstado] = useState("idle")
   const navigate = useNavigate()
   const location = useLocation()
   const [yaSincronizoInicio, setYaSincronizoInicio] = useState(false)
@@ -485,10 +452,10 @@ function AppRoot() {
 
   const dbExiste = hayDB()
 
-useEffect(() => {
+  useEffect(() => {
     if (typeof CapacitorApp?.addListener !== "function") return
     const listenerPromise = CapacitorApp.addListener("backButton", () => {
-      if (location.pathname === "/") { CapacitorApp.exitApp() } else { navigate(-1) }
+      if (location.pathname === "/app") { CapacitorApp.exitApp() } else { navigate(-1) }
     })
     return () => { listenerPromise.then(h => h.remove()) }
   }, [location.pathname])
@@ -507,6 +474,13 @@ useEffect(() => {
     }
   }, [dbExiste, yaSincronizoInicio])
 
+  // Auto-seleccionar usuario si la DB tiene solo uno (ej: después de sync desde bienvenida)
+  useEffect(() => {
+    if (dbExiste && !usuarioActivo && datos?.config?.numUsuarios === 1 && datos?.config?.usuarios?.length === 1) {
+      setUsuarioActivo(datos.config.usuarios[0].id)
+    }
+  }, [dbExiste, usuarioActivo, datos])
+
   const ejecutarSincronizacionGlobal = async () => {
     if (!tokenGuardado() && !tokenGuardadoDropbox()) { navigate("/app/ajustes"); return }
     if (!navigator.onLine) { setSyncStatus("error"); setTimeout(() => setSyncStatus("idle"), 3000); return }
@@ -524,6 +498,7 @@ useEffect(() => {
     }
   }
 
+  // El path del Route coincide con "/oauth" porque Dropbox redirige ahí (no a "/app/oauth")
   if (location.pathname.endsWith("/oauth")) {
     return <Routes><Route path="/oauth" element={<DropboxOAuthCallback />} /></Routes>
   }
@@ -541,8 +516,29 @@ useEffect(() => {
     }
   }
 
+  async function sincronizarDesdeDrive() {
+    try {
+      setDriveEstado("auth")
+      await iniciarAuth()
+      setDriveEstado("syncing")
+      await sincronizar({}, actualizarDatos, (_local, remoto) => remoto)
+      setDriveEstado("ok")
+    } catch (e) {
+      console.error("Drive sync error desde wizard:", e)
+      setDriveEstado("error")
+    }
+  }
+
   if (!dbExiste && modo === null) {
-    return <PantallaBienvenida onConfigurar={() => setModo("wizard")} onSincronizarDropbox={sincronizarDesdeDropbox} dropboxEstado={dropboxEstado} />
+    return (
+      <PantallaBienvenida
+        onConfigurar={() => setModo("wizard")}
+        onSincronizarDropbox={sincronizarDesdeDropbox}
+        dropboxEstado={dropboxEstado}
+        onSincronizarDrive={sincronizarDesdeDrive}
+        driveEstado={driveEstado}
+      />
+    )
   }
 
   if (!dbExiste && modo === "wizard") {
@@ -591,9 +587,5 @@ useEffect(() => {
     </>
   )
 }
-
-//export default function App() {
-//  return <AppRoot />
-//}
 
 export default AppRoot

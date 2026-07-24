@@ -20,12 +20,13 @@ import {
   estiloTabla, 
   estiloTh, 
   estiloTd, 
-  estiloBotonOpcion, 
-  estiloBotonOpcionActivo 
+  estiloBotonOpcion,
+  estiloBotonOpcionActivo
 } from "../theme"
+import { TrendingUp, Landmark, Plus, Download, Trash2, Pencil, X } from "lucide-react"
 
 // ── CONSTANTES ────────────────────────────────────────────────────────────────
-const SIMBOLO = { ES: "€", AR: "$" }
+const SIMBOLO = "€"
 
 // ── HELPERS DE CÁLCULO ────────────────────────────────────────────────────────
 
@@ -67,49 +68,6 @@ function colorPct(n) {
   return n >= 0 ? COLORES.positivo : COLORES.peligro
 }
 
-// ── API INFLACIÓN ─────────────────────────────────────────────────────────────
-
-async function fetchInflacionES(anio, mes) {
-  const urlCache = `https://servicios.ine.es/wstempus/jsCache/ES/DATOS_SERIE/IPC206449?nult=36`
-  const urlProxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://servicios.ine.es/wstempus/js/ES/DATOS_SERIE/IPC206449?nult=36`)}`
-
-  for (const url of [urlCache, urlProxy]) {
-    try {
-      const r = await fetch(url)
-      if (!r.ok) continue
-      const json = await r.json()
-      const datos = Array.isArray(json) ? json : (json.Data || [])
-      const entrada = datos.find(d => d.Anyo === anio && d.FK_Periodo === mes)
-      if (entrada) return { valor: entrada.Valor / 100, razon: null }
-    } catch { continue }
-  }
-  return { valor: null, razon: "no_publicado" }
-}
-
-async function fetchInflacionAR(anio, mes) {
-  const indecUrl = `https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26&limit=36&format=json`
-  const urlProxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(indecUrl)}`
-
-  for (const url of [indecUrl, urlProxy]) {
-    try {
-      const r = await fetch(url)
-      if (!r.ok) continue
-      const json = await r.json()
-      const series = json.data || []
-      const clave = `${anio}-${String(mes).padStart(2, "0")}`
-      const fila = series.find(d => d[0] === clave)
-      if (fila && fila[1] !== null) return { valor: fila[1] / 100, razon: null }
-      if (fila && fila[1] === null) return { valor: null, razon: "no_publicado" }
-    } catch { continue }
-  }
-  return { valor: null, razon: "no_publicado" }
-}
-
-async function fetchInflacion(pais, anio, mes) {
-  if (pais === "AR") return fetchInflacionAR(anio, mes)
-  return fetchInflacionES(anio, mes)
-}
-
 // ── HELPERS DB ────────────────────────────────────────────────────────────────
 
 function getCuentas(datos) {
@@ -141,17 +99,15 @@ function nuevoId() {
 export default function Rendimientos() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
   const { datos, actualizarDatos, fmt } = useDatos()
 
   const pais = datos?.config?.pais || "ES"
-  const simbolo = SIMBOLO[pais] || "€"
+  const simbolo = SIMBOLO
 
   // Estado UI
   const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear())
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState(null)
   const [modal, setModal] = useState(null)
-  const [cargandoInflacion, setCargandoInflacion] = useState(false)
 
   const cuentas = getCuentas(datos)
   const anios = getAnios(datos)
@@ -274,25 +230,6 @@ export default function Rendimientos() {
     URL.revokeObjectURL(url)
   }
 
-  async function cargarInflacionAutomatica(registroId, anio, mes) {
-    setCargandoInflacion(true)
-    try {
-      const { valor, razon } = await fetchInflacion(pais, anio, mes)
-      if (valor !== null) {
-        const ahora = new Date().toISOString()
-        const nuevasInversiones = (datos.inversiones || []).map(r => r.id === registroId ? { ...r, inflacion: valor, actualizadoEn: ahora } : r)
-        actualizarDatos({ ...datos, inversiones: nuevasInversiones })
-      } else if (razon === "no_publicado") {
-        const fuente = pais === "AR" ? "INDEC" : "INE"
-        alert(`El dato de inflación de ${NOMBRES_MESES[mes - 1]} ${anio} todavía no fue publicado por el ${fuente}.`)
-      } else {
-        alert("No se pudo conectar con la API. Verificá tu conexión o ingresá la inflación manualmente.")
-      }
-    } finally {
-      setCargandoInflacion(false)
-    }
-  }
-
   const cuentaActual = cuentas.find(c => c.id === cuentaSeleccionada)
 
   return (
@@ -304,21 +241,18 @@ export default function Rendimientos() {
       `}</style>
 
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={estiloHeader}>
-        <button onClick={() => setMenuAbierto(true)} style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "24px", cursor: "pointer", marginRight: "10px" }}>☰</button>
-        <h1 style={estiloTitulo}>📈 Rendimientos</h1>
-        <button onClick={() => setModal({ tipo: "cuenta" })} style={{ background: "none", border: `1px solid ${COLORES.primario}`, color: COLORES.primario, borderRadius: "8px", width: "36px", height: "36px", cursor: "pointer" }} title="Nueva cuenta">＋</button>
+        <h1 style={{ ...estiloTitulo, display: "flex", alignItems: "center", gap: "8px" }}><TrendingUp size={20} /> Rendimientos</h1>
+        <button onClick={() => setModal({ tipo: "cuenta" })} style={{ background: "none", border: `1px solid ${COLORES.primario}`, color: COLORES.primario, borderRadius: "8px", width: "36px", height: "36px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} title="Nueva cuenta"><Plus size={18} /></button>
       </div>
 
       {cuentas.length === 0 && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 20px", gap: "12px" }}>
-          <div style={{ fontSize: "40px" }}>🏦</div>
+          <Landmark size={40} color={COLORES.textoSecundario} />
           <p style={{ color: COLORES.textoSecundario, textAlign: "center" }}>No tenés cuentas de inversión todavía.</p>
           <button onClick={() => setModal({ tipo: "cuenta" })} style={estiloBotonPrimario}>+ Agregar cuenta</button>
         </div>
@@ -353,8 +287,8 @@ export default function Rendimientos() {
               ))}
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={exportarAnio} style={{ background: "none", border: `1px solid ${COLORES.borde}`, color: COLORES.textoSecundario, fontSize: "12px", borderRadius: "6px", padding: "4px 10px", cursor: "pointer" }} title="Exportar año">⬇ JSON</button>
-              <button onClick={() => setModal({ tipo: "confirmarBorrarAnio" })} style={{ background: "none", border: `1px solid ${COLORES.borde}`, color: COLORES.peligro, fontSize: "12px", borderRadius: "6px", padding: "4px 10px", cursor: "pointer" }} title="Borrar año">🗑</button>
+              <button onClick={exportarAnio} style={{ background: "none", border: `1px solid ${COLORES.borde}`, color: COLORES.textoSecundario, fontSize: "12px", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }} title="Exportar año"><Download size={13} /> JSON</button>
+              <button onClick={() => setModal({ tipo: "confirmarBorrarAnio" })} style={{ background: "none", border: `1px solid ${COLORES.borde}`, color: COLORES.peligro, fontSize: "12px", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center" }} title="Borrar año"><Trash2 size={13} /></button>
             </div>
           </div>
 
@@ -398,13 +332,11 @@ export default function Rendimientos() {
                   fmt={fmt}
                   simbolo={simbolo}
                   pais={pais}
-                  cargandoInflacion={cargandoInflacion}
                   onAgregar={() => setModal({ tipo: "mes", mes: mesNum, anio: anioSeleccionado, registro: null })}
                   onEditar={(r) => setModal({ tipo: "mes", mes: mesNum, anio: anioSeleccionado, registro: r })}
                   onEliminar={(id) => setModal({ tipo: "confirmarBorrarMes", registroId: id })}
                   onAgregarAportacion={(registroId) => setModal({ tipo: "aportacion", registroId })}
                   onEliminarAportacion={eliminarAportacion}
-                  onCargarInflacion={cargarInflacionAutomatica}
                 />
               )
             })}
@@ -458,7 +390,7 @@ export default function Rendimientos() {
 
       {/* Modales via portal */}
       {modal?.tipo === "cuenta" && <ModalCuenta cuentas={cuentas} onGuardar={guardarCuenta} onEliminar={eliminarCuenta} onCerrar={() => setModal(null)} />}
-      {modal?.tipo === "mes" && <ModalMes mes={modal.mes} anio={modal.anio} registro={modal.registro} pais={pais} simbolo={simbolo} onGuardar={guardarMes} onCerrar={() => setModal(null)} />}
+      {modal?.tipo === "mes" && <ModalMes mes={modal.mes} anio={modal.anio} registro={modal.registro} simbolo={simbolo} onGuardar={guardarMes} onCerrar={() => setModal(null)} />}
       {modal?.tipo === "aportacion" && <ModalAportacion registroId={modal.registroId} simbolo={simbolo} onGuardar={guardarAportacion} onCerrar={() => setModal(null)} />}
       {modal?.tipo === "confirmarBorrarAnio" && <ModalConfirmar titulo={`¿Borrar todos los datos de ${anioSeleccionado}?`} descripcion="Esta acción eliminará todos los registros del año. No se puede deshacer." onConfirmar={borrarAnio} onCancelar={() => setModal(null)} />}
       {modal?.tipo === "confirmarBorrarMes" && <ModalConfirmar titulo="¿Borrar este mes?" descripcion="Se eliminará el registro del mes. No se puede deshacer." onConfirmar={() => eliminarMes(modal.registroId)} onCancelar={() => setModal(null)} />}
@@ -469,7 +401,7 @@ export default function Rendimientos() {
 // ── TARJETA MES ───────────────────────────────────────────────────────────────
 // Ya no tiene estado expandido; los botones abren popups directamente.
 
-function TarjetaMes({ mesNombre, mesNum, anio, registro, fmt, simbolo, pais, cargandoInflacion, onAgregar, onEditar, onEliminar, onAgregarAportacion, onEliminarAportacion, onCargarInflacion }) {
+function TarjetaMes({ mesNombre, mesNum, anio, registro, fmt, simbolo, pais, onAgregar, onEditar, onEliminar, onAgregarAportacion, onEliminarAportacion }) {
 
   if (!registro) {
     return (
@@ -479,7 +411,7 @@ function TarjetaMes({ mesNombre, mesNum, anio, registro, fmt, simbolo, pais, car
         className="tarjeta-vacia"
       >
         <div style={{ fontSize: "12px", color: COLORES.textoSecundario, fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>{mesNombre}</div>
-        <div style={{ color: COLORES.textoMuted, fontSize: "20px" }}>＋</div>
+        <div style={{ color: COLORES.textoMuted, display: "flex" }}><Plus size={20} /></div>
       </div>
     )
   }
@@ -515,14 +447,6 @@ function TarjetaMes({ mesNombre, mesNum, anio, registro, fmt, simbolo, pais, car
       {/* Acciones inline */}
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
         <button
-          onClick={() => onCargarInflacion(registro.id, anio, mesNum)}
-          disabled={cargandoInflacion}
-          style={{ background: "transparent", border: `1px solid ${COLORES.borde}`, color: COLORES.textoSecundario, fontSize: "11px", borderRadius: "6px", padding: "3px 8px", cursor: "pointer" }}
-          title="Cargar inflación automática"
-        >
-          {cargandoInflacion ? "⏳" : "📡"}
-        </button>
-        <button
           onClick={() => onAgregarAportacion(registro.id)}
           style={{ background: "transparent", border: `1px solid ${COLORES.borde}`, color: COLORES.textoSecundario, fontSize: "11px", borderRadius: "6px", padding: "3px 8px", cursor: "pointer" }}
           title="Agregar aportación"
@@ -531,15 +455,15 @@ function TarjetaMes({ mesNombre, mesNum, anio, registro, fmt, simbolo, pais, car
         </button>
         <button
           onClick={() => onEditar(registro)}
-          style={{ background: "transparent", border: `1px solid ${COLORES.borde}`, color: COLORES.textoSecundario, fontSize: "11px", borderRadius: "6px", padding: "3px 8px", cursor: "pointer" }}
+          style={{ background: "transparent", border: `1px solid ${COLORES.borde}`, color: COLORES.textoSecundario, fontSize: "11px", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", display: "flex" }}
         >
-          ✏️
+          <Pencil size={13} />
         </button>
         <button
           onClick={() => onEliminar(registro.id)}
-          style={{ background: "transparent", border: `1px solid ${COLORES.borde}`, color: COLORES.peligro, fontSize: "11px", borderRadius: "6px", padding: "3px 8px", cursor: "pointer" }}
+          style={{ background: "transparent", border: `1px solid ${COLORES.borde}`, color: COLORES.peligro, fontSize: "11px", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", display: "flex" }}
         >
-          🗑
+          <Trash2 size={13} />
         </button>
       </div>
     </div>
@@ -555,7 +479,7 @@ function ModalBase({ titulo, onCerrar, children }) {
         {/* Header del popup */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px 14px", borderBottom: `1px solid ${COLORES.borde}`, flexShrink: 0 }}>
           <span style={{ fontSize: "17px", fontWeight: "700", color: COLORES.textoBlanco }}>{titulo}</span>
-          <button onClick={onCerrar} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: COLORES.textoSecundario, lineHeight: 1 }}>✕</button>
+          <button onClick={onCerrar} style={{ background: "none", border: "none", cursor: "pointer", color: COLORES.textoSecundario, lineHeight: 1, display: "flex" }}><X size={18} /></button>
         </div>
         {/* Contenido scrollable */}
         <div style={{ overflowY: "auto", flex: 1, padding: "20px 20px 28px" }}>
@@ -591,16 +515,16 @@ function ModalCuenta({ cuentas, onGuardar, onEliminar, onCerrar }) {
           onKeyDown={e => e.key === "Enter" && handleGuardar()}
           autoFocus
         />
-        <button onClick={handleGuardar} style={{ ...estiloBotonPrimario, width: "auto", padding: "0 16px" }}>
-          {editando ? "Guardar" : "＋"}
+        <button onClick={handleGuardar} style={{ ...estiloBotonPrimario, width: "auto", padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {editando ? "Guardar" : <Plus size={18} />}
         </button>
       </div>
       {cuentas.map(c => (
         <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${COLORES.borde}` }}>
           <span style={{ color: COLORES.textoBlanco }}>{c.nombre}</span>
           <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => { setEditando(c.id); setNombre(c.nombre) }} style={{ background: "none", border: "none", cursor: "pointer", color: COLORES.acento }}>✏️</button>
-            <button onClick={() => onEliminar(c.id)} style={{ background: "none", border: "none", cursor: "pointer", color: COLORES.peligro }}>🗑</button>
+            <button onClick={() => { setEditando(c.id); setNombre(c.nombre) }} style={{ background: "none", border: "none", cursor: "pointer", color: COLORES.acento, display: "flex" }}><Pencil size={15} /></button>
+            <button onClick={() => onEliminar(c.id)} style={{ background: "none", border: "none", cursor: "pointer", color: COLORES.peligro, display: "flex" }}><Trash2 size={15} /></button>
           </div>
         </div>
       ))}
@@ -608,7 +532,7 @@ function ModalCuenta({ cuentas, onGuardar, onEliminar, onCerrar }) {
   )
 }
 
-function ModalMes({ mes, anio, registro, pais, simbolo, onGuardar, onCerrar }) {
+function ModalMes({ mes, anio, registro, simbolo, onGuardar, onCerrar }) {
   const [montoInicial, setMontoInicial] = useState(registro?.montoInicial ?? "")
   // montoFinal es opcional: puede quedar vacío si el mes no terminó
   const [montoFinal, setMontoFinal] = useState(
@@ -641,7 +565,7 @@ function ModalMes({ mes, anio, registro, pais, simbolo, onGuardar, onCerrar }) {
       <input style={estiloInput} type="number" placeholder="0.00" value={montoFinal} onChange={e => setMontoFinal(e.target.value)} />
 
       <label style={estiloLabel}>Inflación mensual (%) — opcional</label>
-      <input style={estiloInput} type="number" placeholder={pais === "AR" ? "ej: 4.2" : "ej: 0.38"} value={inflacion} onChange={e => setInflacion(e.target.value)} />
+      <input style={estiloInput} type="number" placeholder="ej: 0.38" value={inflacion} onChange={e => setInflacion(e.target.value)} />
 
       <button onClick={handleGuardar} style={estiloBotonPrimario}>Guardar</button>
     </ModalBase>

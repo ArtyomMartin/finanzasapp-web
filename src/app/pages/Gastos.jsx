@@ -12,6 +12,7 @@
 import { useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useDatos } from "../context/AppContext"
+import { ArrowLeft } from "lucide-react"
 
 const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
 
@@ -78,7 +79,7 @@ export default function Gastos() {
   return (
     <div style={{ padding: "20px", maxWidth: "500px", margin: "0 auto", backgroundColor: "#0F1115", minHeight: "100vh" }}>
       <div style={styles.header}>
-        <button onClick={() => navigate(-1)} style={styles.volver}>← Volver</button>
+        <button onClick={() => navigate(-1)} style={{ ...styles.volver, display: "flex", alignItems: "center", gap: "6px" }}><ArrowLeft size={16} /> Volver</button>
         <h1 style={styles.titulo}>{tipo === "fondo" ? "Reposición" : "Crédito"}</h1>
       </div>
 

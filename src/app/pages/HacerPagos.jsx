@@ -7,11 +7,11 @@ import DrawerMenu from "../components/DrawerMenu"
 import { egresosActivosEnMes, inversionesActivasEnMes, calcularAporteFondo, montoEgresoMes, lunesEnMes } from "../services/calculos"
 import { NOMBRES_MESES } from "../services/formateo"
 import { COLORES, estiloPantalla, estiloHeader, estiloTitulo, estiloTarjeta, estiloBotonIcono, estiloSubtitulo } from "../theme"
+import { Lightbulb, Check } from "lucide-react"
 
 export default function HacerPagos() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
   const { datos, fmt } = useDatos()
 
   const hoy = new Date()
@@ -61,15 +61,12 @@ export default function HacerPagos() {
   return (
     <div style={estiloPantalla}>
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estiloHeader}>
-          <button onClick={() => setMenuAbierto(true)} style={{ ...estiloBotonIcono, fontSize: "24px", marginRight: "10px" }}>☰</button>
           <h1 style={estiloTitulo}>Hacer Pagos</h1>
         </div>
 
@@ -120,8 +117,9 @@ export default function HacerPagos() {
           </div>
         </div>
 
-        <div style={{ fontSize: "13px", color: COLORES.textoMuted, marginBottom: "20px", lineHeight: "1.5", padding: "12px", background: COLORES.primarioSuave, borderRadius: "8px", borderLeft: `3px solid ${COLORES.primario}` }}>
-          💡 Marcar como pagado es solo visual y no se guarda en ningún lado. Al salir o cambiar de mes se resetea.
+        <div style={{ fontSize: "13px", color: COLORES.textoMuted, marginBottom: "20px", lineHeight: "1.5", padding: "12px", background: COLORES.primarioSuave, borderRadius: "8px", borderLeft: `3px solid ${COLORES.primario}`, display: "flex", gap: "8px" }}>
+          <Lightbulb size={16} style={{ flexShrink: 0, marginTop: "1px" }} />
+          <span>Marcar como pagado es solo visual y no se guarda en ningún lado. Al salir o cambiar de mes se resetea.</span>
         </div>
 
         <div style={{ marginTop: "8px" }}>
@@ -160,7 +158,7 @@ export default function HacerPagos() {
                       fontSize: "13px",
                       color: COLORES.positivo,
                     }}>
-                      {esPagado ? "✓" : ""}
+                      {esPagado ? <Check size={14} /> : ""}
                     </div>
                     <span style={{ padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold", whiteSpace: "nowrap", background: badgeBg, color: badgeColor }}>
                       {item._categoria}

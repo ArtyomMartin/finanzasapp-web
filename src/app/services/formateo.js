@@ -8,6 +8,10 @@ export const NOMBRES_MESES = [
   "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
 ]
 
+export function nombreMesCorto(mes) {
+  return NOMBRES_MESES[mes - 1]?.slice(0, 3) ?? ""
+}
+
 /** Nombre del mes (1-12) */
 export function nombreMes(mes) {
   return NOMBRES_MESES[mes - 1] ?? ""
@@ -20,7 +24,9 @@ export function nombreMes(mes) {
  * @param {string} simbolo — p.ej. "€"
  */
 export function fmt(n, locale, simbolo) {
-  return n.toLocaleString(locale, {
+  const num = Number(n)
+  const seguro = Number.isFinite(num) ? num : 0
+  return seguro.toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }) + " " + simbolo

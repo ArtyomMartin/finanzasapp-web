@@ -9,6 +9,7 @@ import WizardModal from "../components/WizardModal"
 import { COLORES, estilos } from "../theme"
 import { NOMBRES_MESES } from "../services/formateo"
 import { indiceMes } from "../services/calculos"
+import { RefreshCw, Pencil, Trash2, Save, Check, ChevronUp, ChevronDown } from "lucide-react"
 
 // ── Pasos del wizard (funciones puras, state vive en Reposicion) ──────────────
 
@@ -187,8 +188,6 @@ function pasoFecha() {
 export default function Reposicion() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuAbierto, setMenuAbierto] = useState(false)
-
   const { datos, actualizarDatos, usuarioActivo, fmt } = useDatos()
   const hoy = new Date()
   const usuarios = datos.config.usuarios
@@ -345,29 +344,21 @@ export default function Reposicion() {
   return (
     <div style={estilos.estiloPantalla}>
       <DrawerMenu
-        abierto={menuAbierto}
-        setAbierto={setMenuAbierto}
         rutaActual={location.pathname}
         alNavegar={navigate}
       />
 
       <div style={{ animation: "fadeIn 0.35s ease" }}>
         <div style={estilos.estiloHeader}>
-          <button
-            onClick={() => setMenuAbierto(true)}
-            style={{ background: "none", border: "none", fontSize: "24px", marginRight: "10px", cursor: "pointer", color: COLORES.primario }}
-          >
-            ☰
-          </button>
           <h1 style={estilos.estiloTitulo}>Ahorro</h1>
         </div>
 
         {/* Botón para abrir wizard */}
         <button
           onClick={abrirNuevo}
-          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px" }}
+          style={{ ...estilos.estiloBotonPrimario, marginBottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
         >
-          🔄 + Nuevo ahorro 🔄
+          <RefreshCw size={16} /> Nuevo ahorro
         </button>
 
         {/* Listado de fondos pendientes */}
@@ -429,8 +420,8 @@ export default function Reposicion() {
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "16px", fontWeight: "700", color: COLORES.positivo }}>{montoTexto}</div>
-                      <div style={{ fontSize: "12px", color: activo ? COLORES.positivo : COLORES.textoSecundario, marginTop: "2px" }}>
-                        {activo ? "▲" : "▼"}
+                      <div style={{ fontSize: "12px", color: activo ? COLORES.positivo : COLORES.textoSecundario, marginTop: "2px", display: "flex", justifyContent: "flex-end" }}>
+                        {activo ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </div>
                     </div>
                   </button>
@@ -457,9 +448,10 @@ export default function Reposicion() {
                           background: "transparent",
                           color: COLORES.positivo,
                           border: `1px solid ${COLORES.positivo}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        ✏️ Editar
+                        <Pencil size={14} /> Editar
                       </button>
                       <button
                         onClick={() => setConfirmarEliminarId(a.id)}
@@ -473,9 +465,10 @@ export default function Reposicion() {
                           background: COLORES.fondoPanel,
                           color: COLORES.peligro,
                           border: `1px solid ${COLORES.peligro}`,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                         }}
                       >
-                        🗑️ Eliminar
+                        <Trash2 size={14} /> Eliminar
                       </button>
                     </div>
                   )}
@@ -501,7 +494,7 @@ export default function Reposicion() {
           onFin={guardar}
           onCerrar={cerrarWizard}
           titulo={editandoId ? "Editar ahorro" : "Nuevo ahorro"}
-          labelFin={editandoId ? "💾 Guardar cambios" : "✓ Guardar"}
+          labelFin={editandoId ? <><Save size={16} /> Guardar cambios</> : <><Check size={16} /> Guardar</>}
         />
       )}
 

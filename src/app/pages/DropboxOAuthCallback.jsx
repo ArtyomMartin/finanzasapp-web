@@ -1,7 +1,8 @@
-// src/pages/DropboxOAuthCallback.jsx
+//C:documentos/Proyectos/FinanzasApp/src/pantallas/DropboxOAuthCallback.jsx
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { procesarCallbackDropboxWeb } from "../services/dropboxSync"
+import { CheckCircle2, XCircle } from "lucide-react"
 
 export default function DropboxOAuthCallback() {
   const navigate = useNavigate()
@@ -12,14 +13,14 @@ export default function DropboxOAuthCallback() {
       try {
         const ok = await procesarCallbackDropboxWeb()
         if (ok) {
-          setEstado("✅ Conectado. Redirigiendo...")
+          setEstado(<><CheckCircle2 size={18} /> Conectado. Redirigiendo...</>)
           setTimeout(() => navigate("/ajustes?dropbox=ok"), 800)
         } else {
-          setEstado("❌ No se encontró el código de autorización.")
+          setEstado(<><XCircle size={18} /> No se encontró el código de autorización.</>)
           setTimeout(() => navigate("/ajustes"), 2000)
         }
       } catch (e) {
-        setEstado(`❌ Error: ${e?.message || "Error desconocido"}`)
+        setEstado(<><XCircle size={18} /> Error: {e?.message || "Error desconocido"}</>)
         setTimeout(() => navigate("/ajustes"), 2000)
       }
     }
@@ -38,7 +39,7 @@ export default function DropboxOAuthCallback() {
       fontSize: "16px",
       fontFamily: "system-ui, sans-serif",
     }}>
-      <p>{estado}</p>
+      <p style={{ display: "flex", alignItems: "center", gap: "8px" }}>{estado}</p>
     </div>
   )
 }
