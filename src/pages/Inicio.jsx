@@ -15,16 +15,16 @@ export default function Inicio() {
   ];
 
   const C = {
-    fondoApp:        "#f5f5f0",
-    fondoTarjeta:    "#ffffff",
-    borde:           "#1a1a1a",
-    bordeClaro:      "#d4d4cc",
-    texto:           "#1a1a1a",
-    textoSecundario: "#555555",
-    textoMuted:      "#888888",
-    primario:        "#1a1a1a",
-    pillBlue:        "#C2D7FF",
-    pillGreen:       "#C4EFD4",
+    fondoApp:        "var(--c-fondo-app)",
+    fondoTarjeta:    "var(--c-fondo-tarjeta)",
+    borde:           "var(--c-borde)",
+    bordeClaro:      "var(--c-borde-blanco)",
+    texto:           "var(--c-texto)",
+    textoSecundario: "var(--c-texto-secundario)",
+    textoMuted:      "var(--c-texto-muted)",
+    primario:        "var(--c-primario)",
+    pillBlue:        "var(--c-pill-blue)",
+    pillGreen:       "var(--c-pill-green)",
   };
 
   return (
@@ -97,28 +97,6 @@ export default function Inicio() {
 
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
           <a
-            href="https://www.mediafire.com/file/r9fknivmfw3mgo8/FinanzasApp-Setup.exe/file"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: C.pillBlue,
-              color: C.texto,
-              padding: "12px 28px",
-              borderRadius: "100px",
-              textDecoration: "none",
-              fontWeight: "500",
-              fontSize: "14px",
-              border: `1px solid ${C.borde}`,
-              transition: "box-shadow 0.15s, transform 0.15s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "2px 2px 0 #1a1a1a"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
-          >
-            Descargar para Windows
-          </a>
-
-          <a
             href="https://www.mediafire.com/file/gulbpu6vh2mkqut/FinanzasApp.apk/file"
             style={{
               display: "inline-flex",
@@ -134,7 +112,7 @@ export default function Inicio() {
               border: `1px solid ${C.borde}`,
               transition: "box-shadow 0.15s, transform 0.15s",
             }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "2px 2px 0 #1a1a1a"; }}
+            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "var(--c-sombra-hover, 2px 2px 0 #1a1a1a)"; }}
             onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
           >
             Descargar para Android

@@ -393,16 +393,18 @@ export default function Ajustes() {
             </div>
           </div>
 
-          <TarjetaSync
-            titulo="Google Drive"
-            icono={<Cloud size={18} />}
-            conectado={driveConectado}
-            estado={driveEstado}
-            ultimaSync={driveUltimaSync}
-            onConectar={conectarDrive}
-            onDesconectar={desconectarDrive}
-            onSync={hacerSyncDrive}
-          />
+          <div style={{ display: "none" }}>
+            <TarjetaSync
+              titulo="Google Drive"
+              icono={<Cloud size={18} />}
+              conectado={driveConectado}
+              estado={driveEstado}
+              ultimaSync={driveUltimaSync}
+              onConectar={conectarDrive}
+              onDesconectar={desconectarDrive}
+              onSync={hacerSyncDrive}
+            />
+          </div>
 
           <TarjetaSync
             titulo="Dropbox"

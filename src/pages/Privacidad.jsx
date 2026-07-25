@@ -1,12 +1,12 @@
 export default function Privacidad() {
   const C = {
-    fondoApp:        "#f5f5f0",
-    fondoTarjeta:    "#ffffff",
-    borde:           "#1a1a1a",
-    bordeClaro:      "#d4d4cc",
-    texto:           "#1a1a1a",
-    textoSecundario: "#555555",
-    primario:        "#1a1a1a",
+    fondoApp:        "var(--c-fondo-app)",
+    fondoTarjeta:    "var(--c-fondo-tarjeta)",
+    borde:           "var(--c-borde)",
+    bordeClaro:      "var(--c-borde-blanco)",
+    texto:           "var(--c-texto)",
+    textoSecundario: "var(--c-texto-secundario)",
+    primario:        "var(--c-primario)",
   };
 
   const h2Style = {
@@ -35,7 +35,7 @@ export default function Privacidad() {
 
   const codeStyle = {
     color: C.texto,
-    background: "#f0f0eb",
+    background: "var(--c-fondo-fondo)",
     padding: "2px 6px",
     borderRadius: "4px",
     fontSize: "13px",

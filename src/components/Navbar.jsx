@@ -14,8 +14,8 @@ export default function Navbar() {
       display: "flex",
       gap: "8px",
       padding: "12px 24px",
-      borderBottom: "1px solid #1a1a1a",
-      background: "#f5f5f0",
+      borderBottom: "1px solid var(--c-borde, #1a1a1a)",
+      background: "var(--c-fondo-app, #f5f5f0)",
       position: "sticky",
       top: 0,
       zIndex: 100,
@@ -30,12 +30,12 @@ export default function Navbar() {
             textDecoration: "none",
             fontSize: "14px",
             fontWeight: "500",
-            border: "1px solid #1a1a1a",
-            background: active ? "#C2D7FF" : "#ffffff",
-            color: "#1a1a1a",
+            border: "1px solid var(--c-borde, #1a1a1a)",
+            background: active ? "var(--c-pill-blue, #C2D7FF)" : "var(--c-fondo-tarjeta, #ffffff)",
+            color: "var(--c-texto, #1a1a1a)",
             transition: "box-shadow 0.15s, transform 0.15s",
           }}
-          onMouseEnter={e => { if (!active) { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "2px 2px 0 #1a1a1a"; }}}
+          onMouseEnter={e => { if (!active) { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "var(--c-sombra-hover, 2px 2px 0 #1a1a1a)"; }}}
           onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
           >{l.label}</Link>
         )
