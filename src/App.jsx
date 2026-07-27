@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import Navbar from "./components/Navbar"
 import Inicio from "./pages/Inicio"
 import Privacidad from "./pages/Privacidad"
+import Manual from "./pages/Manual"
 import ComoUsar from "./pages/ComoUsar/ComoUsar"
 import { AppProvider } from "./app/context/AppContext"
 import AppRoot from "./app/AppRoot"
@@ -35,6 +36,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Inicio />} />
             <Route path="/privacidad" element={<Privacidad />} />
+            <Route path="/manual" element={<Manual />} />
             <Route path="/como-usar/*" element={<ComoUsar />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
