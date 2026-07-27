@@ -152,6 +152,8 @@ function PantallaBienvenida({ onConfigurar, onSincronizarDropbox, dropboxEstado,
              dropboxEstado === "error"   ? <><XCircle size={16} /> Error — reintentar</>   :
              <><Package size={16} /> Sincronizar con Dropbox</>}
           </button>
+          {/* Drive sync oculto temporalmente — mantener código para uso futuro */}
+          <span style={{ display: "none" }}>
           <button
             onClick={onSincronizarDrive}
             disabled={driveEstado === "syncing" || driveEstado === "auth"}
@@ -169,14 +171,15 @@ function PantallaBienvenida({ onConfigurar, onSincronizarDropbox, dropboxEstado,
              driveEstado === "error"   ? <><XCircle size={16} /> Error — reintentar</>   :
              <><Cloud size={16} /> Sincronizar con Google Drive</>}
           </button>
-          {dropboxEstado === "error" && (
-            <p style={{ margin: 0, fontSize: "13px", color: COLORES.peligro, textAlign: "center" }}>
-              No se pudo conectar. Comprobá tu cuenta e intentalo de nuevo.
-            </p>
-          )}
           {driveEstado === "error" && (
             <p style={{ margin: 0, fontSize: "13px", color: COLORES.peligro, textAlign: "center" }}>
               No se pudo conectar con Google Drive. Intentalo de nuevo.
+            </p>
+          )}
+          </span>
+          {dropboxEstado === "error" && (
+            <p style={{ margin: 0, fontSize: "13px", color: COLORES.peligro, textAlign: "center" }}>
+              No se pudo conectar. Comprobá tu cuenta e intentalo de nuevo.
             </p>
           )}
         </div>

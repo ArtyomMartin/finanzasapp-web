@@ -80,7 +80,7 @@ export default function Inicio() {
           color: C.texto,
           fontFamily: "'Google Sans', 'Roboto', sans-serif",
         }}>
-          GTE - Gestiona Tu Economía
+          FinanzasApp
         </h1>
 
         <p style={{
