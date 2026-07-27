@@ -138,7 +138,10 @@ export default function Privacidad() {
 
         <h2 style={h2Style}>10. CONTACTO</h2>
         <p style={pStyle}>
-          Para cualquier consulta: [tu@email.com]
+          Para cualquier consulta relacionada con esta política de privacidad, podés escribirnos a: <a href="mailto:finanzasappmartin@gmail.com" style={{color: 'inherit'}}>finanzasappmartin@gmail.com</a>
+        </p>
+        <p style={pStyle}>
+          También podés usar ese mismo correo para cualquier consulta general o aportación sobre la app. Tu feedback es bienvenido.
         </p>
       </div>
     </div>
