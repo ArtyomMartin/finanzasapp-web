@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { useDatos } from "../context/AppContext"
 import DrawerMenu from "../components/DrawerMenu"
 import WizardModal from "../components/WizardModal"
-import { lunesEnMes, montoEgresoMes, indiceMes } from "../services/calculos"
+import { lunesEnMes, montoEgresoMes, egresosActivosEnMes } from "../services/calculos"
 import { COLORES, estilos } from "../theme"
 import { NOMBRES_MESES } from "../services/formateo"
 import { Calendar, CalendarDays, Info, Banknote, Pencil, Trash2, Check, Save, ChevronUp, ChevronDown, ArrowRight } from "lucide-react"
@@ -290,14 +290,15 @@ export default function Egresos() {
   const [selId, setSelId] = useState(null)
   const [confirmarEliminarItem, setConfirmarEliminarItem] = useState(null)
 
-  const ahora2 = indiceMes(ANIO_HOY, MES_HOY)
-  const activos = (datos.egresos || [])
-    .filter(e => !e.eliminado)
-    .filter(e => {
-      const fin = (e.mesFin && e.anioFin) ? indiceMes(e.anioFin, e.mesFin) : Infinity
-      return fin >= ahora2
-    })
+  const [offsetMes, setOffsetMes] = useState(0)
+  const mesSelDate = new Date(ANIO_HOY, HOY.getMonth() + offsetMes, 1)
+  const mesSel = mesSelDate.getMonth() + 1
+  const anioSel = mesSelDate.getFullYear()
+
+  const activos = egresosActivosEnMes(datos.egresos, mesSel, anioSel)
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+  const totalMes = activos.reduce((acc, e) => acc + montoEgresoMes(e, anioSel, mesSel), 0)
 
   function wizardNuevoInicial() {
     return {
@@ -431,7 +432,7 @@ export default function Egresos() {
   }
 
   function montoFila(e) {
-    return montoEgresoMes(e, anioDefecto, mesDefecto)
+    return montoEgresoMes(e, anioSel, mesSel)
   }
 
   // Pasos según modo
@@ -478,6 +479,48 @@ export default function Egresos() {
           <Banknote size={16} /> Nuevo egreso
         </button>
 
+        {/* Selector de mes — horizontal */}
+        <div style={{
+          display: "flex",
+          flexDirection: "row",
+          marginBottom: "16px",
+          overflow: "hidden",
+          borderRadius: "12px",
+          border: `1px solid ${COLORES.borde}`,
+          backgroundColor: COLORES.fondoTarjeta,
+        }}>
+          {[[-1, "Mes anterior"], [0, "Mes actual"], [1, "Mes siguiente"]].map(([o, label]) => (
+            <button
+              key={o}
+              onClick={() => setOffsetMes(o)}
+              style={{
+                flex: 1,
+                padding: "13px 8px",
+                fontSize: "14px",
+                border: "none",
+                borderRight: o < 1 ? `1px solid ${COLORES.borde}` : "none",
+                cursor: "pointer",
+                fontWeight: "bold",
+                transition: "all 0.2s",
+                background: offsetMes === o ? COLORES.primarioSuave : "transparent",
+                color: offsetMes === o ? COLORES.textoBlanco : COLORES.textoMuted,
+                borderBottom: offsetMes === o ? `2px solid ${COLORES.primario}` : "2px solid transparent",
+                whiteSpace: "nowrap",
+              }}
+            >{label}</button>
+          ))}
+        </div>
+
+        {/* Total del mes */}
+        <div style={{ marginBottom: "20px" }}>
+          <p style={{ fontSize: "13px", color: COLORES.textoSecundario, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>
+            Egresos de: {NOMBRES_MESES[mesSel - 1]} {anioSel}
+          </p>
+          <div style={{ ...estilos.estiloTarjeta, display: "flex", flexDirection: "column", gap: "4px", padding: "14px 16px" }}>
+            <span style={{ fontSize: "22px", fontWeight: "700", color: COLORES.negativo }}>{fmt(totalMes)}</span>
+          </div>
+        </div>
+
         {/* Listado */}
         {activos.length > 0 && (
           <div>
@@ -521,7 +564,7 @@ export default function Egresos() {
                         </div>
                         {esSemanal && (
                           <div style={{ fontSize: "11px", color: COLORES.advertencia, marginTop: "2px" }}>
-                            {fmt(e.monto)} × {lunesEnMes(anioDefecto, mesDefecto)} lunes
+                            {fmt(e.monto)} × {lunesEnMes(anioSel, mesSel)} lunes
                           </div>
                         )}
                       </div>

@@ -280,8 +280,11 @@ export default function Ingresos() {
   ]
 
   const hoyIdx = indiceMes(hoy.getFullYear(), hoy.getMonth() + 1)
-  const mesActual = hoy.getMonth() + 1
-  const anioActual = hoy.getFullYear()
+
+  const [offsetMes, setOffsetMes] = useState(0)
+  const mesSelDate = new Date(hoy.getFullYear(), hoy.getMonth() + offsetMes, 1)
+  const mesActual = mesSelDate.getMonth() + 1
+  const anioActual = mesSelDate.getFullYear()
 
   const itemsListado = [
     ...datos.salarios.filter(s => !s.eliminado).map(s => ({
@@ -461,11 +464,43 @@ export default function Ingresos() {
           <DollarSign size={16} /> Nuevo ingreso
         </button>
 
+        {/* Selector de mes — horizontal */}
+        <div style={{
+          display: "flex",
+          flexDirection: "row",
+          marginBottom: "16px",
+          overflow: "hidden",
+          borderRadius: "12px",
+          border: `1px solid ${COLORES.borde}`,
+          backgroundColor: COLORES.fondoTarjeta,
+        }}>
+          {[[-1, "Mes anterior"], [0, "Mes actual"], [1, "Mes siguiente"]].map(([o, label]) => (
+            <button
+              key={o}
+              onClick={() => setOffsetMes(o)}
+              style={{
+                flex: 1,
+                padding: "13px 8px",
+                fontSize: "14px",
+                border: "none",
+                borderRight: o < 1 ? `1px solid ${COLORES.borde}` : "none",
+                cursor: "pointer",
+                fontWeight: "bold",
+                transition: "all 0.2s",
+                background: offsetMes === o ? COLORES.primarioSuave : "transparent",
+                color: offsetMes === o ? COLORES.textoBlanco : COLORES.textoMuted,
+                borderBottom: offsetMes === o ? `2px solid ${COLORES.primario}` : "2px solid transparent",
+                whiteSpace: "nowrap",
+              }}
+            >{label}</button>
+          ))}
+        </div>
+
         {/* Totales del mes */}
         {totalesPorUsuario.some(t => t.total > 0) && (
           <div style={{ marginBottom: "20px" }}>
             <p style={{ fontSize: "13px", color: COLORES.textoSecundario, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>
-              Total ingresos este mes
+              Ingresos de: {NOMBRES_MESES[mesActual - 1]} {anioActual}
             </p>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
               {totalesPorUsuario.map(t => (
