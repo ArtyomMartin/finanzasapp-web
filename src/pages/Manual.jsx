@@ -101,25 +101,30 @@ export default function Manual() {
 
   return (
     <div style={{
-      padding: "40px 24px 80px",
-      display: "flex",
-      justifyContent: "center",
+      padding: "24px 16px 80px",
       background: C.fondoApp,
       minHeight: "100vh",
       fontFamily: "'Roboto', sans-serif",
     }}>
-      <div style={{ maxWidth: "960px", width: "100%", display: "flex", gap: "32px", alignItems: "flex-start" }}>
+      <style>{`
+        @media (min-width: 768px) {
+          .manual-outer { display: flex !important; flex-direction: row !important; gap: 32px; align-items: flex-start; max-width: 960px; margin: 0 auto; }
+          .manual-toc { position: sticky !important; top: 80px; width: 220px !important; flex-shrink: 0; display: flex !important; flex-direction: column !important; }
+          .manual-toc-grid { display: none !important; }
+          .manual-content { padding: 48px !important; }
+        }
+        @media (max-width: 767px) {
+          .manual-outer { display: block !important; max-width: 100%; }
+          .manual-toc { display: none !important; }
+          .manual-toc-grid { display: block !important; }
+          .manual-content { padding: 20px !important; }
+        }
+      `}</style>
 
-        {/* TOC sidebar */}
-        <nav style={{
-          position: "sticky",
-          top: "80px",
-          width: "220px",
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: "4px",
-        }}>
+      <div className="manual-outer">
+
+        {/* TOC sidebar (desktop) */}
+        <nav className="manual-toc" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <p style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase", color: C.textoSecundario, marginBottom: "8px" }}>
             Índice
           </p>
@@ -139,15 +144,38 @@ export default function Manual() {
           ))}
         </nav>
 
+        {/* TOC grid (mobile) */}
+        <div className="manual-toc-grid" style={{ marginBottom: "16px" }}>
+          <p style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase", color: C.textoSecundario, marginBottom: "10px" }}>
+            Índice
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+            {sections.map(s => (
+              <a key={s.id} href={`#${s.id}`} style={{
+                fontSize: "12px",
+                color: C.textoSecundario,
+                textDecoration: "none",
+                padding: "7px 10px",
+                borderRadius: "8px",
+                lineHeight: "1.4",
+                background: "var(--c-fondo-tarjeta, #ffffff)",
+                border: `1px solid ${C.bordeClaro}`,
+                display: "block",
+              }}>
+                {s.label}
+              </a>
+            ))}
+          </div>
+        </div>
+
         {/* Main content */}
         <div style={{
           flex: 1,
-          padding: "48px",
           background: C.fondoTarjeta,
           borderRadius: "16px",
           border: `1px solid ${C.borde}`,
           lineHeight: "1.8",
-        }}>
+        }} className="manual-content">
           <h1 style={{
             fontSize: "26px",
             fontWeight: "700",
