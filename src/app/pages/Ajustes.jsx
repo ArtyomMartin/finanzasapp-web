@@ -7,6 +7,7 @@ import { Filesystem, Directory, Encoding } from "@capacitor/filesystem"
 import { Share } from "@capacitor/share"
 import Backup from "../components/Backup"
 import DrawerMenu from "../components/DrawerMenu"
+import EditorBarraNav from "../components/EditorBarraNav"
 import { useDatos } from "../context/AppContext"
 import { iniciarAuth, tokenGuardado, cerrarSesion, sincronizar, mergeDatos } from "../services/driveSync"
 import {
@@ -16,7 +17,7 @@ import {
   sincronizarDropbox,
 } from "../services/dropboxSync"
 import { purgarDatos } from "../services/purga"
-import { Palette, Cloud, Package, Trash2, Search, BarChart2, Loader2, XCircle, CheckCircle2, WifiOff, AlertTriangle, RefreshCw } from "lucide-react"
+import { Palette, Cloud, Package, Trash2, Search, BarChart2, LayoutGrid, Loader2, XCircle, CheckCircle2, WifiOff, AlertTriangle, RefreshCw } from "lucide-react"
 import {
   COLORES, 
   estiloPantalla, 
@@ -297,11 +298,13 @@ export default function Ajustes() {
   const temaActual  = tema || "original"
 
   const TEMAS_OPCIONES = [
-  { id: "retro-flat",      label: "Claro",      desc: "Gris hueso · Bordes negros" },
-  { id: "retro-flat-dark", label: "Oscuro",     desc: "Gris oscuro · Bajo contraste" },
-  { id: "blanco",          label: "Blanco",     desc: "Gris azulado · Acentos monocromos" },
-  { id: "negro-puro",      label: "Negro puro", desc: "Negros profundos · Acento lila" },
-  { id: "argentina",       label: "Argentina",  desc: "Celeste y blanco · Acentos dorados" },
+  { id: "retro-flat",      label: "Claro",       desc: "Gris hueso · Bordes negros" },
+  { id: "retro-flat-dark", label: "Oscuro",      desc: "Gris oscuro · Bajo contraste" },
+  { id: "argentina",       label: "Argentina",   desc: "Celeste y blanco · Acentos dorados" },
+  { id: "flores",          label: "Flores",      desc: "Tonos rosados y delicados" },
+  { id: "terminal",        label: "Terminal",    desc: "Negro y verde estilo Matrix" },
+  { id: "hp-slytherin",    label: "HP Slytherin", desc: "Verde, gris y dorado" },
+  { id: "contraste",       label: "Contraste",   desc: "Fondo blanco · Acento azul brillante" },
   ]
 
   const aniosDisponibles = Array.from(
@@ -430,6 +433,13 @@ export default function Ajustes() {
             <ColumnasHome />
           </div>
 
+          <div style={estiloCard}>
+            <h2 style={{ ...estiloSubtitulo, display: "flex", alignItems: "center", gap: "8px" }}><LayoutGrid size={18} /> Barra inferior</h2>
+            <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.textoSecundario }}>
+              Elegí qué 3 pantallas aparecen en el centro de la barra. Inicio y Más son fijos.
+            </p>
+            <EditorBarraNav />
+          </div>
 
           {/* ── Mantenimiento ── */}
           <div style={estiloCard}>
