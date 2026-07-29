@@ -4,17 +4,33 @@ import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useDatos } from "../context/AppContext"
 import DrawerMenu from "../components/DrawerMenu"
-import { calcularIngresoCompartidoTotal, egresosActivosEnMes, montoEgresoMes } from "../services/calculos"
-import { COLORES, estiloPantalla, estiloHeader, estiloTitulo, estiloTarjeta, estiloBotonPrimario, estiloBotonSecundario, estiloBotonIcono, estiloLabel, estiloInput, estiloWizardBox } from "../theme"
-import { ArrowLeft, ArrowRight, Lightbulb, CheckCircle2, Shield, Pencil, X, Check, Save, PartyPopper } from "lucide-react"
+import {
+  calcularIngresoCompartidoTotal,
+  egresosActivosEnMes,
+  montoEgresoMes,
+  proyectarRunwayFondo,
+} from "../services/calculos"
+import {
+  COLORES, estiloPantalla, estiloHeader, estiloTitulo, estiloTarjeta,
+  estiloBotonPrimario, estiloBotonSecundario, estiloBotonIcono,
+  estiloLabel, estiloInput, estiloWizardBox,
+} from "../theme"
+import {
+  ArrowLeft, ArrowRight, Lightbulb, CheckCircle2, Shield, Pencil,
+  X, Check, Save, PartyPopper, Pause, Play, AlertTriangle,
+} from "lucide-react"
+
+const NOMBRES_MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
 
 export default function FondoEmergencia() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { datos, actualizarDatos, fmt } = useDatos()
+  const { datos, actualizarDatos, fmt, usuarioActivo } = useDatos()
 
   const fondo = datos.fondoEmergencia || {}
   const activo = !!fondo.activo
+  const aporteAutoPausa = fondo.aporteAutoPausa !== false // default true
+  const aportePausadoManual = !!fondo.aportePausadoManual
   const ubicacion = datos.ubicacion || []
   const entradaFondo = ubicacion.find(c => c.id === "fondo-emergencia")
   const montoActual = parseFloat(entradaFondo?.monto) || 0
@@ -22,10 +38,9 @@ export default function FondoEmergencia() {
   const hoy = new Date()
   const mes = hoy.getMonth() + 1
   const anio = hoy.getFullYear()
-  
-  let mesSig = mes + 1;
-  let anioSig = anio;
-  if (mesSig > 12) { mesSig = 1; anioSig++; }
+
+  let mesSig = mes + 1, anioSig = anio
+  if (mesSig > 12) { mesSig = 1; anioSig++ }
 
   const ingresoMes = calcularIngresoCompartidoTotal(datos, mes, anio)
   const egresosMesSiguiente = egresosActivosEnMes(datos.egresos || [], mesSig, anioSig)
@@ -43,9 +58,15 @@ export default function FondoEmergencia() {
   const [editTipo, setEditTipo] = useState(fondo.tipo || "porcentaje")
   const [editValor, setEditValor] = useState(fondo.valor || "")
   const [editMeses, setEditMeses] = useState(fondo.mesesObjetivo || 3)
+  const [editAutoPausa, setEditAutoPausa] = useState(aporteAutoPausa)
+
+  // Runway projection
+  const usuarios = datos.config?.usuarios || []
+  const otroUsuario = usuarios.find(u => u.id !== usuarioActivo)
+  const [escenarioRunway, setEscenarioRunway] = useState(null)
 
   const objetivo = (fondo.mesesObjetivo || 3) * egresosMesSiguiente
-  const aporteMensual = fondo.activo
+  const aporteMensual = activo
     ? fondo.tipo === "porcentaje"
       ? ingresoMes * (fondo.valor / 100)
       : fondo.valor
@@ -54,26 +75,33 @@ export default function FondoEmergencia() {
   const progresoPct = objetivo > 0 ? Math.min(100, (montoActual / objetivo) * 100) : 0
   const cubierto = montoActual >= objetivo && objetivo > 0
 
+  // Aporte efectivo (considerando pausas)
+  const aportePausado = aportePausadoManual || (aporteAutoPausa && cubierto)
+
+  const resultadoRunway = escenarioRunway
+    ? proyectarRunwayFondo(datos, escenarioRunway)
+    : null
+
   function activarFondo() {
     const valor = parseFloat(wizValor)
     if (!valor || valor <= 0) return alert("Ingresa un valor válido")
     if (wizTipo === "porcentaje" && valor > 100) return alert("El porcentaje no puede superar 100")
-
     const ahora = new Date().toISOString()
     const nuevaUbicacion = ubicacion.find(c => c.id === "fondo-emergencia")
       ? ubicacion
       : [...ubicacion, { id: "fondo-emergencia", nombre: "Fondo de emergencia", monto: 0, protegido: true, creadoEn: ahora }]
-
     actualizarDatos({
       ...datos,
       fondoEmergencia: {
         activo: true,
         tipo: wizTipo,
-        valor: valor,
+        valor,
         mesesObjetivo: wizMeses,
         mesInicio: mes,
         anioInicio: anio,
         actualizadoEn: ahora,
+        aporteAutoPausa: true,
+        aportePausadoManual: false,
       },
       ubicacion: nuevaUbicacion,
     })
@@ -101,12 +129,24 @@ export default function FondoEmergencia() {
       fondoEmergencia: {
         ...fondo,
         tipo: editTipo,
-        valor: valor,
+        valor,
         mesesObjetivo: editMeses,
+        aporteAutoPausa: editAutoPausa,
         actualizadoEn: new Date().toISOString(),
       }
     })
     setEditandoConfig(false)
+  }
+
+  function togglePausaManual() {
+    actualizarDatos({
+      ...datos,
+      fondoEmergencia: {
+        ...fondo,
+        aportePausadoManual: !aportePausadoManual,
+        actualizadoEn: new Date().toISOString(),
+      }
+    })
   }
 
   function desactivarFondo() {
@@ -117,6 +157,8 @@ export default function FondoEmergencia() {
     })
   }
 
+  // ── Wizard ──────────────────────────────────────────────────────────────────
+
   if (paso === 1) {
     return (
       <div style={estiloPantalla}>
@@ -126,42 +168,29 @@ export default function FondoEmergencia() {
             <button onClick={() => setPaso(0)} style={{ ...estiloBotonIcono, display: "flex", alignItems: "center", gap: "6px" }}><ArrowLeft size={16} /> Volver</button>
             <h1 style={estiloTitulo}>Fondo de emergencia</h1>
           </div>
-
           <div style={estiloWizardBox}>
             <div style={{ fontSize: "12px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "12px" }}>Paso 1 de 2</div>
             <h2 style={{ margin: "0 0 6px", fontSize: "20px", fontWeight: "700", color: COLORES.textoBlanco }}>¿Cuántos meses de gastos quieres cubrir?</h2>
-            <p style={{ margin: "0 0 20px", fontSize: "14px", color: COLORES.textoMuted, lineHeight: "1.5" }}>Lo recomendado es entre 3 y 7 meses de tus gastos fijos (calculado sobre el mes próximo).</p>
-
+            <p style={{ margin: "0 0 20px", fontSize: "14px", color: COLORES.textoMuted, lineHeight: "1.5" }}>Lo recomendado es entre 3 y 7 meses de tus gastos fijos.</p>
             <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
               {[3, 5, 7].map(m => (
-                <button
-                  key={m}
-                  onClick={() => setWizMeses(m)}
-                  style={{
-                    flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "16px 8px", borderRadius: "10px", cursor: "pointer",
-                    background: wizMeses === m ? COLORES.primarioSuave : COLORES.fondoOpcion,
-                    border: `1px solid ${wizMeses === m ? COLORES.primario : COLORES.borde}`,
-                    color: wizMeses === m ? COLORES.textoBlanco : COLORES.textoSecundario,
-                  }}
-                >
+                <button key={m} onClick={() => setWizMeses(m)} style={{
+                  flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "16px 8px", borderRadius: "10px", cursor: "pointer",
+                  background: wizMeses === m ? COLORES.primarioSuave : COLORES.fondoOpcion,
+                  border: `1px solid ${wizMeses === m ? COLORES.primario : COLORES.borde}`,
+                  color: wizMeses === m ? COLORES.textoBlanco : COLORES.textoSecundario,
+                }}>
                   <span style={{ fontSize: "28px", fontWeight: "800" }}>{m}</span>
                   <span style={{ fontSize: "12px", color: wizMeses === m ? COLORES.textoSecundario : COLORES.textoMuted }}>meses</span>
                 </button>
               ))}
             </div>
-
             {egresosMesSiguiente > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: COLORES.primarioSuave, borderRadius: "8px", marginBottom: "16px" }}>
                 <span style={{ color: COLORES.textoMuted, fontSize: "13px" }}>Objetivo estimado:</span>
                 <span style={{ color: COLORES.advertencia, fontWeight: "700", fontSize: "16px" }}>{fmt(wizMeses * egresosMesSiguiente)}</span>
               </div>
             )}
-            {egresosMesSiguiente === 0 && (
-              <p style={{ color: COLORES.textoMuted, fontSize: "13px", marginTop: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-                <Lightbulb size={14} /> No hay egresos registrados el mes próximo, el objetivo se calculará cuando los agregues.
-              </p>
-            )}
-
             <button onClick={() => setPaso(2)} style={{ ...estiloBotonPrimario, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>Siguiente <ArrowRight size={16} /></button>
           </div>
         </div>
@@ -178,38 +207,22 @@ export default function FondoEmergencia() {
             <button onClick={() => setPaso(1)} style={{ ...estiloBotonIcono, display: "flex", alignItems: "center", gap: "6px" }}><ArrowLeft size={16} /> Volver</button>
             <h1 style={estiloTitulo}>Fondo de emergencia</h1>
           </div>
-
           <div style={estiloWizardBox}>
             <div style={{ fontSize: "12px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "12px" }}>Paso 2 de 2</div>
             <h2 style={{ margin: "0 0 6px", fontSize: "20px", fontWeight: "700", color: COLORES.textoBlanco }}>¿Cómo quieres aportar cada mes?</h2>
             <p style={{ margin: "0 0 20px", fontSize: "14px", color: COLORES.textoMuted, lineHeight: "1.5" }}>Este importe se mostrará como referencia en Hacer Pagos.</p>
-
             <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
               {[["porcentaje", "% de ingresos"], ["fijo", "Monto fijo"]].map(([t, label]) => (
-                <button
-                  key={t}
-                  onClick={() => { setWizTipo(t); setWizValor("") }}
-                  style={{
-                    flex: 1, padding: "13px", borderRadius: "10px", cursor: "pointer", fontWeight: "600", fontSize: "14px",
-                    background: wizTipo === t ? COLORES.primarioSuave : COLORES.fondoOpcion,
-                    border: `1px solid ${wizTipo === t ? COLORES.primario : COLORES.borde}`,
-                    color: wizTipo === t ? COLORES.textoBlanco : COLORES.textoSecundario,
-                  }}
-                >{label}</button>
+                <button key={t} onClick={() => { setWizTipo(t); setWizValor("") }} style={{
+                  flex: 1, padding: "13px", borderRadius: "10px", cursor: "pointer", fontWeight: "600", fontSize: "14px",
+                  background: wizTipo === t ? COLORES.primarioSuave : COLORES.fondoOpcion,
+                  border: `1px solid ${wizTipo === t ? COLORES.primario : COLORES.borde}`,
+                  color: wizTipo === t ? COLORES.textoBlanco : COLORES.textoSecundario,
+                }}>{label}</button>
               ))}
             </div>
-
-            <label style={estiloLabel}>
-              {wizTipo === "porcentaje" ? "Porcentaje de los ingresos (%)" : "Monto fijo mensual (€)"}
-            </label>
-            <input
-              type="number"
-              placeholder={wizTipo === "porcentaje" ? "Ej: 10" : "Ej: 200"}
-              value={wizValor}
-              onChange={e => setWizValor(e.target.value)}
-              style={estiloInput}
-            />
-
+            <label style={estiloLabel}>{wizTipo === "porcentaje" ? "Porcentaje de los ingresos (%)" : "Monto fijo mensual (€)"}</label>
+            <input type="number" placeholder={wizTipo === "porcentaje" ? "Ej: 10" : "Ej: 200"} value={wizValor} onChange={e => setWizValor(e.target.value)} style={estiloInput} />
             {wizValor > 0 && ingresoMes > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: COLORES.primarioSuave, borderRadius: "8px", marginBottom: "16px", marginTop: "16px" }}>
                 <span style={{ color: COLORES.textoMuted, fontSize: "13px" }}>Aporte estimado este mes:</span>
@@ -218,18 +231,18 @@ export default function FondoEmergencia() {
                 </span>
               </div>
             )}
-
-            <button onClick={activarFondo} style={{...estiloBotonPrimario, marginTop: "16px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"}}><CheckCircle2 size={16} /> Activar fondo</button>
+            <button onClick={activarFondo} style={{ ...estiloBotonPrimario, marginTop: "16px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}><CheckCircle2 size={16} /> Activar fondo</button>
           </div>
         </div>
       </div>
     )
   }
 
+  // ── Vista principal ──────────────────────────────────────────────────────────
+
   return (
     <div style={estiloPantalla}>
       <DrawerMenu rutaActual={location.pathname} alNavegar={navigate} />
-
       <div style={{ animation: "fadeSlideUp 0.35s ease" }}>
         <div style={estiloHeader}>
           <h1 style={{ ...estiloTitulo, display: "flex", alignItems: "center", gap: "8px" }}><Shield size={20} /> Fondo de emergencia</h1>
@@ -247,41 +260,33 @@ export default function FondoEmergencia() {
           </div>
         ) : (
           <>
+            {/* ── Tarjeta de saldo y progreso ── */}
             <div style={{ ...estiloTarjeta, borderLeft: `4px solid ${cubierto ? COLORES.positivo : COLORES.advertencia}`, padding: "16px", marginBottom: "12px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Saldo actual en el fondo
-                    </p>
+                    <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Saldo actual en el fondo</p>
                     {!editandoSaldo && (
-                      <button
-                        onClick={() => { setEditandoSaldo(true); setNuevoSaldo(montoActual.toString()) }}
-                        style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "13px", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: "4px" }}
-                      ><Pencil size={13} /> Editar</button>
+                      <button onClick={() => { setEditandoSaldo(true); setNuevoSaldo(montoActual.toString()) }}
+                        style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "13px", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: "4px" }}>
+                        <Pencil size={13} /> Editar
+                      </button>
                     )}
                   </div>
 
                   {editandoSaldo ? (
                     <div style={{ marginTop: "12px", display: "flex", gap: "8px", alignItems: "center" }}>
-                      <input
-                        type="number"
-                        value={nuevoSaldo}
-                        onChange={e => setNuevoSaldo(e.target.value)}
-                        style={{ ...estiloInput, flex: 1, minWidth: 0, width: "auto" }}
-                        autoFocus
-                      />
+                      <input type="number" value={nuevoSaldo} onChange={e => setNuevoSaldo(e.target.value)}
+                        style={{ ...estiloInput, flex: 1, minWidth: 0, width: "auto" }} autoFocus />
                       <button onClick={guardarSaldo} style={{ ...estiloBotonPrimario, margin: 0, padding: "12px 16px", width: "auto", flexShrink: 0 }}>Guardar</button>
                       <button onClick={() => setEditandoSaldo(false)} style={{ ...estiloBotonSecundario, margin: 0, padding: "12px 16px", width: "auto", flexShrink: 0, display: "flex" }}><X size={16} /></button>
                     </div>
                   ) : (
                     <>
-                      <p style={{ margin: "4px 0 0", fontSize: "28px", fontWeight: "800", color: COLORES.advertencia }}>
-                        {fmt(montoActual)}
-                      </p>
+                      <p style={{ margin: "4px 0 0", fontSize: "28px", fontWeight: "800", color: COLORES.advertencia }}>{fmt(montoActual)}</p>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
                         <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoMuted }}>
-                          Objetivo ({fondo.mesesObjetivo} meses): <strong style={{color: COLORES.textoBlanco}}>{fmt(objetivo)}</strong>
+                          Objetivo ({fondo.mesesObjetivo} meses): <strong style={{ color: COLORES.textoBlanco }}>{fmt(objetivo)}</strong>
                         </p>
                         {cubierto && (
                           <span style={{ background: COLORES.fondoPanel, color: COLORES.positivo, border: `1px solid ${COLORES.positivo}`, borderRadius: "8px", padding: "2px 8px", fontSize: "11px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "4px" }}>
@@ -295,12 +300,7 @@ export default function FondoEmergencia() {
               </div>
 
               <div style={{ background: COLORES.fondoPanel, borderRadius: "99px", height: "10px", overflow: "hidden", marginBottom: "8px", marginTop: "16px" }}>
-                <div style={{
-                  height: "100%", borderRadius: "99px",
-                  width: `${progresoPct}%`,
-                  background: cubierto ? COLORES.positivo : COLORES.advertencia,
-                  transition: "width 0.6s ease"
-                }} />
+                <div style={{ height: "100%", borderRadius: "99px", width: `${progresoPct}%`, background: cubierto ? COLORES.positivo : COLORES.advertencia, transition: "width 0.6s ease" }} />
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: COLORES.textoMuted }}>
                 <span>{progresoPct.toFixed(1)}% completado</span>
@@ -308,17 +308,16 @@ export default function FondoEmergencia() {
               </div>
             </div>
 
-            <div style={{ ...estiloTarjeta, padding: "16px" }}>
+            {/* ── Tarjeta de configuración del aporte ── */}
+            <div style={{ ...estiloTarjeta, padding: "16px", marginBottom: "12px" }}>
               {!editandoConfig ? (
                 <>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Aporte mensual configurado
-                    </p>
-                    <button
-                      onClick={() => { setEditandoConfig(true); setEditTipo(fondo.tipo); setEditValor(fondo.valor); setEditMeses(fondo.mesesObjetivo) }}
-                      style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "13px", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: "4px" }}
-                    ><Pencil size={13} /> Editar</button>
+                    <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Aporte mensual configurado</p>
+                    <button onClick={() => { setEditandoConfig(true); setEditTipo(fondo.tipo); setEditValor(fondo.valor); setEditMeses(fondo.mesesObjetivo); setEditAutoPausa(aporteAutoPausa) }}
+                      style={{ background: "none", border: "none", color: COLORES.primario, fontSize: "13px", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: "4px" }}>
+                      <Pencil size={13} /> Editar
+                    </button>
                   </div>
 
                   <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
@@ -331,7 +330,9 @@ export default function FondoEmergencia() {
                     {ingresoMes > 0 && (
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px", padding: "10px 14px", background: COLORES.fondoPanel, borderRadius: "8px", border: `1px solid ${COLORES.borde}` }}>
                         <span style={{ fontSize: "11px", color: COLORES.textoMuted }}>Este mes</span>
-                        <span style={{ fontSize: "14px", fontWeight: "700", color: COLORES.positivo }}>{fmt(aporteMensual)}</span>
+                        <span style={{ fontSize: "14px", fontWeight: "700", color: aportePausado ? COLORES.textoMuted : COLORES.positivo }}>
+                          {aportePausado ? "Pausado" : fmt(aporteMensual)}
+                        </span>
                       </div>
                     )}
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", padding: "10px 14px", background: COLORES.fondoPanel, borderRadius: "8px", border: `1px solid ${COLORES.borde}` }}>
@@ -340,46 +341,47 @@ export default function FondoEmergencia() {
                     </div>
                   </div>
 
-                  {!cubierto && objetivo > 0 && aporteMensual > 0 && (
+                  {/* Estado del aporte */}
+                  {cubierto && aporteAutoPausa && !aportePausadoManual && (
+                    <div style={{ marginTop: "12px", padding: "10px 12px", background: COLORES.fondoPanel, borderRadius: "8px", borderLeft: `3px solid ${COLORES.positivo}` }}>
+                      <p style={{ margin: 0, fontSize: "13px", color: COLORES.positivo, display: "flex", alignItems: "center", gap: "6px" }}>
+                        <PartyPopper size={14} /> ¡Objetivo cubierto! El aporte está auto-pausado. Podés redirigirlo a inversiones.
+                      </p>
+                    </div>
+                  )}
+                  {!cubierto && objetivo > 0 && aporteMensual > 0 && !aportePausado && (
                     <div style={{ marginTop: "12px", padding: "10px 12px", background: COLORES.primarioSuave, borderRadius: "8px", borderLeft: `3px solid ${COLORES.primario}` }}>
                       <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoSecundario, display: "flex", alignItems: "flex-start", gap: "6px" }}>
                         <Lightbulb size={14} style={{ flexShrink: 0, marginTop: "2px" }} />
                         <span>A este ritmo alcanzarás el objetivo en aproximadamente{" "}
-                        <strong style={{ color: COLORES.primario }}>
-                          {Math.ceil(Math.max(0, objetivo - montoActual) / aporteMensual)} meses
-                        </strong></span>
+                          <strong style={{ color: COLORES.primario }}>
+                            {Math.ceil(Math.max(0, objetivo - montoActual) / aporteMensual)} meses
+                          </strong>
+                        </span>
                       </p>
                     </div>
                   )}
-
-                  {cubierto && (
-                    <div style={{ marginTop: "12px", padding: "10px 12px", background: COLORES.fondoPanel, borderRadius: "8px", borderLeft: `3px solid ${COLORES.positivo}` }}>
-                      <p style={{ margin: 0, fontSize: "13px", color: COLORES.positivo, display: "flex", alignItems: "center", gap: "6px" }}>
-                        <PartyPopper size={14} /> ¡Fondo cubierto! Puedes redirigir este aporte a inversiones u otros objetivos.
+                  {aportePausadoManual && (
+                    <div style={{ marginTop: "12px", padding: "10px 12px", background: COLORES.fondoPanel, borderRadius: "8px", borderLeft: `3px solid ${COLORES.advertencia}` }}>
+                      <p style={{ margin: 0, fontSize: "13px", color: COLORES.advertencia, display: "flex", alignItems: "center", gap: "6px" }}>
+                        <Pause size={14} /> Aporte pausado manualmente. No se descuenta del presupuesto mensual.
                       </p>
                     </div>
                   )}
                 </>
               ) : (
                 <>
-                  <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Editar configuración
-                  </p>
+                  <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Editar configuración</p>
 
                   <label style={estiloLabel}>Meses de gastos a cubrir</label>
                   <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
                     {[3, 5, 7].map(m => (
-                      <button
-                        key={m}
-                        onClick={() => setEditMeses(m)}
-                        style={{
-                          flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", borderRadius: "10px", cursor: "pointer",
-                          padding: "10px 16px",
-                          background: editMeses === m ? COLORES.primarioSuave : COLORES.fondoOpcion,
-                          border: `1px solid ${editMeses === m ? COLORES.primario : COLORES.borde}`,
-                          color: editMeses === m ? COLORES.textoBlanco : COLORES.textoSecundario,
-                        }}
-                      >
+                      <button key={m} onClick={() => setEditMeses(m)} style={{
+                        flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", borderRadius: "10px", cursor: "pointer", padding: "10px 16px",
+                        background: editMeses === m ? COLORES.primarioSuave : COLORES.fondoOpcion,
+                        border: `1px solid ${editMeses === m ? COLORES.primario : COLORES.borde}`,
+                        color: editMeses === m ? COLORES.textoBlanco : COLORES.textoSecundario,
+                      }}>
                         <span style={{ fontSize: "18px", fontWeight: "800" }}>{m}</span>
                         <span style={{ fontSize: "11px" }}>meses</span>
                       </button>
@@ -389,28 +391,40 @@ export default function FondoEmergencia() {
                   <label style={estiloLabel}>Tipo de aporte</label>
                   <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
                     {[["porcentaje", "% ingresos"], ["fijo", "Monto fijo"]].map(([t, label]) => (
-                      <button
-                        key={t}
-                        onClick={() => { setEditTipo(t); setEditValor("") }}
-                        style={{
-                          flex: 1, padding: "13px", borderRadius: "10px", cursor: "pointer", fontWeight: "600", fontSize: "14px",
-                          background: editTipo === t ? COLORES.primarioSuave : COLORES.fondoOpcion,
-                          border: `1px solid ${editTipo === t ? COLORES.primario : COLORES.borde}`,
-                          color: editTipo === t ? COLORES.textoBlanco : COLORES.textoSecundario,
-                        }}
-                      >{label}</button>
+                      <button key={t} onClick={() => { setEditTipo(t); setEditValor("") }} style={{
+                        flex: 1, padding: "13px", borderRadius: "10px", cursor: "pointer", fontWeight: "600", fontSize: "14px",
+                        background: editTipo === t ? COLORES.primarioSuave : COLORES.fondoOpcion,
+                        border: `1px solid ${editTipo === t ? COLORES.primario : COLORES.borde}`,
+                        color: editTipo === t ? COLORES.textoBlanco : COLORES.textoSecundario,
+                      }}>{label}</button>
                     ))}
                   </div>
 
-                  <label style={estiloLabel}>
-                    {editTipo === "porcentaje" ? "Porcentaje (%)" : "Monto fijo (€)"}
-                  </label>
-                  <input
-                    type="number"
-                    value={editValor}
-                    onChange={e => setEditValor(e.target.value)}
-                    style={{ ...estiloInput, marginBottom: "12px" }}
-                  />
+                  <label style={estiloLabel}>{editTipo === "porcentaje" ? "Porcentaje (%)" : "Monto fijo (€)"}</label>
+                  <input type="number" value={editValor} onChange={e => setEditValor(e.target.value)} style={{ ...estiloInput, marginBottom: "12px" }} />
+
+                  {/* Toggle auto-pausa */}
+                  <button
+                    onClick={() => setEditAutoPausa(p => !p)}
+                    style={{ display: "flex", alignItems: "center", gap: "10px", background: "none", border: "none", cursor: "pointer", padding: "10px 0", marginBottom: "16px", width: "100%" }}
+                  >
+                    <div style={{
+                      width: "40px", height: "22px", borderRadius: "11px", flexShrink: 0,
+                      background: editAutoPausa ? COLORES.primario : COLORES.fondoPanel,
+                      border: `1px solid ${editAutoPausa ? COLORES.primario : COLORES.borde}`,
+                      position: "relative", transition: "background 0.2s",
+                    }}>
+                      <div style={{
+                        position: "absolute", top: "2px",
+                        left: editAutoPausa ? "18px" : "2px",
+                        width: "16px", height: "16px", borderRadius: "50%",
+                        background: COLORES.textoBlanco, transition: "left 0.2s",
+                      }} />
+                    </div>
+                    <span style={{ fontSize: "13px", color: COLORES.textoSecundario, textAlign: "left" }}>
+                      Auto-pausar aporte al cubrir el objetivo
+                    </span>
+                  </button>
 
                   <div style={{ display: "flex", gap: "8px" }}>
                     <button onClick={guardarConfig} style={{ ...estiloBotonPrimario, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}><Save size={16} /> Guardar</button>
@@ -420,14 +434,133 @@ export default function FondoEmergencia() {
               )}
             </div>
 
+            {/* ── Pausa manual y desactivar ── */}
             {!editandoConfig && (
-              <button onClick={desactivarFondo} style={{ ...estiloBotonSecundario, width: "100%", marginTop: "4px", color: COLORES.peligro, borderColor: COLORES.peligro }}>
-                Desactivar fondo
-              </button>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                <button onClick={togglePausaManual} style={{
+                  ...estiloBotonSecundario, flex: 1,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                  color: aportePausadoManual ? COLORES.positivo : COLORES.textoSecundario,
+                  borderColor: aportePausadoManual ? COLORES.positivo : undefined,
+                }}>
+                  {aportePausadoManual ? <><Play size={14} /> Reanudar aporte</> : <><Pause size={14} /> Pausar aporte</>}
+                </button>
+                <button onClick={desactivarFondo} style={{ ...estiloBotonSecundario, flex: 1, color: COLORES.peligro, borderColor: COLORES.peligro }}>
+                  Desactivar fondo
+                </button>
+              </div>
+            )}
+
+            {/* ── Proyección de runway ── */}
+            {montoActual > 0 && (
+              <div style={{ ...estiloTarjeta, padding: "16px", marginBottom: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                  <AlertTriangle size={16} color={COLORES.advertencia} />
+                  <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Proyección: ¿cuánto aguanta el fondo?
+                  </p>
+                </div>
+                <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.textoSecundario }}>
+                  Seleccioná un escenario de pérdida de ingresos para ver cuántos meses cubre tu fondo.
+                </p>
+
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+                  {usuarios.map(u => (
+                    <button
+                      key={u.id}
+                      onClick={() => setEscenarioRunway(
+                        escenarioRunway?.usuariosEliminados?.[0] === u.id && escenarioRunway.usuariosEliminados.length === 1
+                          ? null
+                          : { usuariosEliminados: [u.id] }
+                      )}
+                      style={{
+                        padding: "8px 14px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600",
+                        background: escenarioRunway?.usuariosEliminados?.length === 1 && escenarioRunway.usuariosEliminados[0] === u.id
+                          ? COLORES.primarioSuave : COLORES.fondoOpcion,
+                        border: `1px solid ${escenarioRunway?.usuariosEliminados?.length === 1 && escenarioRunway.usuariosEliminados[0] === u.id
+                          ? COLORES.primario : COLORES.borde}`,
+                        color: escenarioRunway?.usuariosEliminados?.length === 1 && escenarioRunway.usuariosEliminados[0] === u.id
+                          ? COLORES.textoBlanco : COLORES.textoSecundario,
+                      }}
+                    >
+                      Pierde {u.nombre}
+                    </button>
+                  ))}
+                  {usuarios.length > 1 && (
+                    <button
+                      onClick={() => setEscenarioRunway(
+                        escenarioRunway?.usuariosEliminados?.length === usuarios.length ? null
+                          : { usuariosEliminados: usuarios.map(u => u.id) }
+                      )}
+                      style={{
+                        padding: "8px 14px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600",
+                        background: escenarioRunway?.usuariosEliminados?.length === usuarios.length
+                          ? COLORES.primarioSuave : COLORES.fondoOpcion,
+                        border: `1px solid ${escenarioRunway?.usuariosEliminados?.length === usuarios.length
+                          ? COLORES.primario : COLORES.borde}`,
+                        color: escenarioRunway?.usuariosEliminados?.length === usuarios.length
+                          ? COLORES.textoBlanco : COLORES.textoSecundario,
+                      }}
+                    >
+                      Ambos
+                    </button>
+                  )}
+                </div>
+
+                {resultadoRunway && (
+                  <ResultadoRunway resultado={resultadoRunway} fmt={fmt} />
+                )}
+              </div>
             )}
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+function ResultadoRunway({ resultado, fmt }) {
+  const { mesesRunway, fechaAgotamiento, huboDeficit, deficitMensualPromedio, saldoActual } = resultado
+
+  if (!huboDeficit) {
+    return (
+      <div style={{ padding: "14px", background: COLORES.fondoPanel, borderRadius: "10px", borderLeft: `3px solid ${COLORES.positivo}` }}>
+        <p style={{ margin: 0, fontSize: "14px", color: COLORES.positivo, fontWeight: "600" }}>
+          Sin déficit en este escenario
+        </p>
+        <p style={{ margin: "4px 0 0", fontSize: "13px", color: COLORES.textoMuted }}>
+          Los ingresos restantes cubren todos los gastos básicos.
+        </p>
+      </div>
+    )
+  }
+
+  if (fechaAgotamiento) {
+    const nombreMes = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][fechaAgotamiento.getMonth()]
+    const anio = fechaAgotamiento.getFullYear()
+    return (
+      <div style={{ padding: "14px", background: COLORES.fondoPanel, borderRadius: "10px", borderLeft: `3px solid ${COLORES.peligro}` }}>
+        <p style={{ margin: "0 0 4px", fontSize: "22px", fontWeight: "800", color: COLORES.peligro }}>
+          {mesesRunway} {mesesRunway === 1 ? "mes" : "meses"}
+        </p>
+        <p style={{ margin: "0 0 6px", fontSize: "14px", color: COLORES.textoSecundario }}>
+          El fondo se agotaría en <strong style={{ color: COLORES.textoBlanco }}>{nombreMes} {anio}</strong>
+        </p>
+        <p style={{ margin: 0, fontSize: "12px", color: COLORES.textoMuted }}>
+          Déficit mensual promedio: {fmt(deficitMensualPromedio)} · Saldo actual: {fmt(saldoActual)}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ padding: "14px", background: COLORES.fondoPanel, borderRadius: "10px", borderLeft: `3px solid ${COLORES.advertencia}` }}>
+      <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: "600", color: COLORES.advertencia }}>
+        Hay déficit pero el fondo resiste los 60 meses analizados
+      </p>
+      <p style={{ margin: 0, fontSize: "13px", color: COLORES.textoMuted }}>
+        Déficit mensual promedio: {fmt(deficitMensualPromedio)}
+      </p>
     </div>
   )
 }

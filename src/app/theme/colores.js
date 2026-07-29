@@ -6,7 +6,7 @@
 //   "argentina"       → claro, celeste y blanco, acentos dorados
 //   "flores"          → claro, tonos rosados y delicados
 //   "terminal"        → oscuro, negro y verde estilo Matrix
-//   "hp-slytherin"    → oscuro, verde, gris y dorado (Slytherin)
+//   "hp-slytherin"    → oscuro, verde y plateado (Slytherin)
 //   "contraste"       → claro, fondo blanco, acento azul brillante
 
 export const TEMA_RETRO_FLAT = {
@@ -241,8 +241,8 @@ export const TEMA_HP_SLYTHERIN = {
   "--c-fondo-bottom-sheet":  "#2a3d32",
   "--c-fondo":               "#1a2820",
 
-  "--c-borde":               "#c0a94f",
-  "--c-borde-panel":         "#c0a94f",
+  "--c-borde":               "#7a9488",
+  "--c-borde-panel":         "#7a9488",
   "--c-borde-blanco":        "#3d5245",
   "--c-borde-blanco10":      "#47604f",
 
@@ -255,12 +255,12 @@ export const TEMA_HP_SLYTHERIN = {
   "--c-primario-alpha":      "rgba(42, 122, 79, 0.88)",
   "--c-primario-suave":      "#3a5240",
   "--c-primario-oscuro":     "#1e5c3a",
-  "--c-acento":              "#c0a94f",
+  "--c-acento":              "#c0ccc6",
   "--c-texto-boton":         "#0d150f",
 
   "--c-positivo":            "#4caf7d",
   "--c-neutro":              "#8fa8c4",
-  "--c-advertencia":         "#d4af37",
+  "--c-advertencia":         "#a8b8b0",
   "--c-negativo":            "#c0524a",
   "--c-peligro":             "#c0524a",
   "--c-exito":               "#4caf7d",
@@ -273,10 +273,10 @@ export const TEMA_HP_SLYTHERIN = {
   "--c-pill-blue":           "#2c3d4a",
   "--c-pill-green":          "#234a34",
   "--c-pill-red":            "#4a2c28",
-  "--c-pill-yellow":         "#4a3f1e",
+  "--c-pill-yellow":         "#364040",
   "--c-pill-purple":         "#33304a",
   "--c-pill-orange":         "#4a3620",
-  "--c-sombra-hover":        "2px 3px 0 #c0a94f",
+  "--c-sombra-hover":        "2px 3px 0 #c0ccc6",
 
   "--blur-panel":            "none",
   "--blur-app":              "none",

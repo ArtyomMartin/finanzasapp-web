@@ -4,10 +4,10 @@ import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useDatos } from "../context/AppContext"
 import DrawerMenu from "../components/DrawerMenu"
-import { egresosActivosEnMes, inversionesActivasEnMes, calcularAporteFondo, montoEgresoMes, lunesEnMes } from "../services/calculos"
+import { egresosActivosEnMes, inversionesActivasEnMes, calcularAporteFondo, montoEgresoMes, lunesEnMes, hayDeficitMes } from "../services/calculos"
 import { NOMBRES_MESES } from "../services/formateo"
 import { COLORES, estiloPantalla, estiloHeader, estiloTitulo, estiloTarjeta, estiloBotonIcono, estiloSubtitulo } from "../theme"
-import { Lightbulb, Check } from "lucide-react"
+import { Lightbulb, Check, AlertTriangle } from "lucide-react"
 
 export default function HacerPagos() {
   const navigate = useNavigate()
@@ -28,12 +28,14 @@ export default function HacerPagos() {
       _montoMes: montoEgresoMes(e, mesSel.anio, mesSel.mes)
     }))
 
-  const inversiones = inversionesActivasEnMes(datos.inversiones || [], mesSel.mes, mesSel.anio)
+  const deficit = hayDeficitMes(datos, mesSel.mes, mesSel.anio)
+
+  const inversiones = deficit ? [] : inversionesActivasEnMes(datos.inversiones || [], mesSel.mes, mesSel.anio)
     .filter(i => !i.cuentaId)
     .map(i => ({ ...i, _categoria: "Inversión", _montoMes: i.monto }))
 
   let aporteFondoItem = []
-  if (datos.fondoEmergencia?.activo) {
+  if (!deficit && datos.fondoEmergencia?.activo) {
     const montoAporte = calcularAporteFondo(datos, mesSel.mes, mesSel.anio)
     if (montoAporte > 0) {
       aporteFondoItem.push({
@@ -116,6 +118,13 @@ export default function HacerPagos() {
             <div style={{ fontSize: "18px", fontWeight: "700", color: COLORES.negativo }}>{fmt(total)} total</div>
           </div>
         </div>
+
+        {deficit && (
+          <div style={{ fontSize: "13px", color: COLORES.peligro, marginBottom: "12px", lineHeight: "1.5", padding: "12px", background: "rgba(239,68,68,0.1)", borderRadius: "8px", borderLeft: `3px solid ${COLORES.peligro}`, display: "flex", gap: "8px" }}>
+            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: "1px" }} />
+            <span>Este mes los egresos fijos superan los ingresos. Las inversiones y el aporte al fondo están auto-pausados.</span>
+          </div>
+        )}
 
         <div style={{ fontSize: "13px", color: COLORES.textoMuted, marginBottom: "20px", lineHeight: "1.5", padding: "12px", background: COLORES.primarioSuave, borderRadius: "8px", borderLeft: `3px solid ${COLORES.primario}`, display: "flex", gap: "8px" }}>
           <Lightbulb size={16} style={{ flexShrink: 0, marginTop: "1px" }} />

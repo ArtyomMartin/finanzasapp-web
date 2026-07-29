@@ -1,18 +1,11 @@
 // src/services/calculos.js
-// ─────────────────────────────────────────────────────────────────────────────
-// Toda la lógica de cálculo financiero de la app en un único lugar.
-// Importar desde cualquier página con:
-//   import { calcularMes, lunesEnMes, ... } from "../services/calculos"
-// ─────────────────────────────────────────────────────────────────────────────
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
 
-/** Índice numérico de un mes: permite comparar meses con > < === */
 export function indiceMes(anio, mes) {
   return anio * 12 + mes
 }
 
-/** Cuenta cuántos lunes hay en el mes dado (usado para egresos semanales) */
 export function lunesEnMes(anio, mes) {
   let count = 0
   const d = new Date(anio, mes - 1, 1)
@@ -23,13 +16,11 @@ export function lunesEnMes(anio, mes) {
   return count
 }
 
-/** Devuelve el monto real de un egreso para un mes concreto */
 export function montoEgresoMes(egreso, anio, mes) {
   if (egreso.frecuencia === "s") return egreso.monto * lunesEnMes(anio, mes)
   return egreso.monto
 }
 
-/** Devuelve un array con los próximos N meses a partir del mes siguiente al actual */
 export function proximosMeses(n = 6) {
   const hoy = new Date()
   let mes = hoy.getMonth() + 2
@@ -45,7 +36,6 @@ export function proximosMeses(n = 6) {
 
 // ── Filtros de actividad por mes ──────────────────────────────────────────────
 
-/** Salarios activos para un usuario en un mes/año dado */
 export function salarioActivoEnMes(salarios, usuarioId, mes, anio, alcance = null) {
   const consulta = indiceMes(anio, mes)
   return (salarios || []).filter(s => {
@@ -58,7 +48,6 @@ export function salarioActivoEnMes(salarios, usuarioId, mes, anio, alcance = nul
   })
 }
 
-/** Variaciones activas para un usuario en un mes/año dado */
 export function variacionActivaEnMes(variaciones, usuarioId, mes, anio, alcance = null) {
   return (variaciones || []).filter(v => {
     if (v.eliminado) return false
@@ -68,7 +57,6 @@ export function variacionActivaEnMes(variaciones, usuarioId, mes, anio, alcance 
   })
 }
 
-/** Egresos activos en un mes/año dado */
 export function egresosActivosEnMes(egresos, mes, anio) {
   const consulta = indiceMes(anio, mes)
   return (egresos || []).filter(e => {
@@ -79,7 +67,6 @@ export function egresosActivosEnMes(egresos, mes, anio) {
   })
 }
 
-/** Inversiones mensuales activas (tipo 1, sin cuentaId) en un mes/año dado */
 export function inversionesActivasEnMes(inversiones, mes, anio) {
   const consulta = indiceMes(anio, mes)
   return (inversiones || []).filter(e => {
@@ -95,7 +82,6 @@ export function inversionesActivasEnMes(inversiones, mes, anio) {
   })
 }
 
-/** Ajustes activos para un usuario en un mes/año dado */
 export function ajustesActivosEnMes(ajustes, usuarioId, mes, anio) {
   const consulta = indiceMes(anio, mes)
   return (ajustes || []).filter(a => {
@@ -107,12 +93,8 @@ export function ajustesActivosEnMes(ajustes, usuarioId, mes, anio) {
   })
 }
 
-// ── Cálculo de ingreso total compartido ──────────────────────────────────────
+// ── Cálculo de ingresos ───────────────────────────────────────────────────────
 
-/**
- * Suma todos los ingresos compartidos de TODOS los usuarios para un mes.
- * Usado para calcular el reparto proporcional.
- */
 export function calcularIngresoCompartidoTotal(datos, mes, anio) {
   return (datos.config.usuarios || []).reduce((acc, u) => {
     const sueldos = salarioActivoEnMes(datos.salarios, u.id, mes, anio, "compartido")
@@ -123,19 +105,6 @@ export function calcularIngresoCompartidoTotal(datos, mes, anio) {
   }, 0)
 }
 
-// ── Ingresos totales de todos los usuarios (compartidos + individuales) ────────
-
-/**
- * Suma TODOS los ingresos de TODOS los usuarios para un mes:
- * salarios compartidos + salarios individuales + variaciones compartidas + variaciones individuales.
- *
- * Usado para la columna "Ingresos" en la pantalla Home.
- *
- * NOTA: Este valor es el ingreso bruto del hogar, sin aplicar reparto.
- * Si en el futuro se quiere mostrar el ingreso proporcional al usuario activo,
- * se puede usar: (ingresoCompartidoTotal * pct) + ingresoIndividualUsuario
- * donde pct viene de calcularMes().
- */
 export function calcularIngresosTotales(datos, mes, anio) {
   return (datos.config.usuarios || []).reduce((acc, u) => {
     const sueldos = salarioActivoEnMes(datos.salarios, u.id, mes, anio)
@@ -146,22 +115,59 @@ export function calcularIngresosTotales(datos, mes, anio) {
   }, 0)
 }
 
+// ── Cálculo del aporte al fondo de emergencia ─────────────────────────────────
+
+export function calcularAporteFondo(datos, mes, anio) {
+  const fondo = datos.fondoEmergencia
+  if (!fondo?.activo) return 0
+
+  const consulta = indiceMes(anio, mes)
+  const inicioFondo = indiceMes(fondo.anioInicio, fondo.mesInicio)
+  if (consulta < inicioFondo) return 0
+
+  // Pausa manual explícita
+  if (fondo.aportePausadoManual) return 0
+
+  // Auto-pausa al cubrir el objetivo (activo por defecto)
+  const autoPausa = fondo.aporteAutoPausa !== false
+  if (autoPausa) {
+    const montoActual = parseFloat(
+      (datos.ubicacion || []).find(c => c.id === "fondo-emergencia")?.monto
+    ) || 0
+    const egresosBaseMes = egresosActivosEnMes(datos.egresos || [], mes, anio)
+      .reduce((acc, e) => acc + montoEgresoMes(e, anio, mes), 0)
+    const objetivo = (fondo.mesesObjetivo || 3) * egresosBaseMes
+    if (objetivo > 0 && montoActual >= objetivo) return 0
+  }
+
+  const ingresoTotal = calcularIngresoCompartidoTotal(datos, mes, anio)
+  if (fondo.tipo === "porcentaje") {
+    return ingresoTotal * (fondo.valor / 100)
+  }
+  return fondo.valor
+}
+
+// ── Detección de déficit ──────────────────────────────────────────────────────
+
+// Devuelve true si los egresos base (sin inversiones ni fondo) superan el ingreso compartido.
+// En ese caso, inversiones y aporte al fondo se pausan automáticamente.
+export function hayDeficitMes(datos, mes, anio) {
+  const ingreso = calcularIngresoCompartidoTotal(datos, mes, anio)
+  const egresosBase = egresosActivosEnMes(datos.egresos || [], mes, anio)
+    .reduce((acc, e) => acc + montoEgresoMes(e, anio, mes), 0)
+  return ingreso < egresosBase
+}
+
 // ── Egresos totales del hogar ─────────────────────────────────────────────────
 
-/**
- * Suma todos los egresos fijos compartidos + inversiones + aporte al fondo
- * para un mes. Es el total del hogar, sin aplicar reparto.
- *
- * Usado para la columna "Egresos" en la pantalla Home.
- *
- * NOTA FUTURA: si se quiere mostrar la parte proporcional del usuario activo,
- * multiplicar el resultado por el porcentaje de reparto (pct) que devuelve
- * calcularMes(). Los gastos personales (ajustes: créditos y fondos) no están
- * incluidos aquí — esos ya aparecen en la columna "Gastos" como gasto personal.
- */
 export function calcularEgresosTotales(datos, mes, anio) {
   const egresosBase = egresosActivosEnMes(datos.egresos, mes, anio)
     .reduce((acc, e) => acc + montoEgresoMes(e, anio, mes), 0)
+
+  const ingreso = calcularIngresoCompartidoTotal(datos, mes, anio)
+
+  // Si hay déficit, inversiones y fondo se pausan automáticamente
+  if (ingreso < egresosBase) return egresosBase
 
   const inversionesTotales = inversionesActivasEnMes(datos.inversiones, mes, anio)
     .reduce((acc, e) => acc + e.monto, 0)
@@ -171,31 +177,8 @@ export function calcularEgresosTotales(datos, mes, anio) {
   return egresosBase + inversionesTotales + aporteFondo
 }
 
-// ── Cálculo del aporte al fondo de emergencia ─────────────────────────────────
-
-/**
- * Devuelve el aporte mensual al fondo de emergencia para un mes dado.
- * Devuelve 0 si el fondo no está activo o el mes es anterior al inicio.
- */
-export function calcularAporteFondo(datos, mes, anio) {
-  if (!datos.fondoEmergencia?.activo) return 0
-  const consulta = indiceMes(anio, mes)
-  const inicioFondo = indiceMes(datos.fondoEmergencia.anioInicio, datos.fondoEmergencia.mesInicio)
-  if (consulta < inicioFondo) return 0
-
-  const ingresoTotal = calcularIngresoCompartidoTotal(datos, mes, anio)
-  if (datos.fondoEmergencia.tipo === "porcentaje") {
-    return ingresoTotal * (datos.fondoEmergencia.valor / 100)
-  }
-  return datos.fondoEmergencia.valor
-}
-
 // ── Función principal de cálculo de un mes ───────────────────────────────────
 
-/**
- * Calcula el resumen financiero de un usuario para un mes/año.
- * Devuelve: { netoProvisorio, gastos, netoFinal }
- */
 export function calcularMes(datos, usuarioId, mes, anio) {
   const usuario = datos.config.usuarios.find(u => u.id === usuarioId)
   if (!usuario) return { netoProvisorio: 0, gastos: 0, netoFinal: 0 }
@@ -203,7 +186,6 @@ export function calcularMes(datos, usuarioId, mes, anio) {
   const numUsuarios = datos.config.numUsuarios
   const reparto = datos.config.reparto
 
-  // Ingresos del usuario
   const ingresoCompartidoUsuario =
     salarioActivoEnMes(datos.salarios, usuarioId, mes, anio, "compartido").reduce((a, s) => a + s.monto, 0) +
     variacionActivaEnMes(datos.variaciones, usuarioId, mes, anio, "compartido").reduce((a, v) => a + v.monto, 0)
@@ -213,19 +195,8 @@ export function calcularMes(datos, usuarioId, mes, anio) {
     variacionActivaEnMes(datos.variaciones, usuarioId, mes, anio, "individual").reduce((a, v) => a + v.monto, 0)
 
   const ingresoCompartidoTotal = calcularIngresoCompartidoTotal(datos, mes, anio)
+  const egresosTotales = calcularEgresosTotales(datos, mes, anio)
 
-  // Egresos del mes
-  const egresosBase = egresosActivosEnMes(datos.egresos, mes, anio)
-    .reduce((acc, e) => acc + montoEgresoMes(e, anio, mes), 0)
-
-  const inversionesTotales = inversionesActivasEnMes(datos.inversiones, mes, anio)
-    .reduce((acc, e) => acc + e.monto, 0)
-
-  const aporteFondo = calcularAporteFondo(datos, mes, anio)
-
-  const egresosTotales = egresosBase + inversionesTotales + aporteFondo
-
-  // Reparto
   let pct
   if (reparto === "proporcional" && ingresoCompartidoTotal > 0) {
     pct = ingresoCompartidoUsuario / ingresoCompartidoTotal
@@ -235,7 +206,6 @@ export function calcularMes(datos, usuarioId, mes, anio) {
 
   const netoProvisorio = (ingresoCompartidoTotal - egresosTotales) * pct + ingresoIndividualUsuario
 
-  // Gastos personales (créditos y fondos del usuario)
   const gastos = ajustesActivosEnMes(datos.ajustes, usuarioId, mes, anio)
     .reduce((acc, a) => acc + (a.forma === "cuotas" ? a.montoCuota : a.montoTotal), 0)
 
@@ -246,10 +216,6 @@ export function calcularMes(datos, usuarioId, mes, anio) {
 
 // ── Desglose de gastos para bottom sheet ─────────────────────────────────────
 
-/**
- * Devuelve los ajustes activos de un usuario separados por tipo (fondo / crédito).
- * Incluye info de cuota actual para mostrar "cuota N de M".
- */
 export function calcularDetalleGastos(datos, usuarioId, mes, anio) {
   const fondos = []
   const creditos = []
@@ -277,4 +243,181 @@ export function calcularDetalleGastos(datos, usuarioId, mes, anio) {
     else creditos.push(item)
   })
   return { fondos, creditos }
+}
+
+// ── Proyección de runway del fondo de emergencia ──────────────────────────────
+
+function _clonarDatosConEscenario(datos, escenario) {
+  const { usuariosEliminados } = escenario || {}
+  if (!usuariosEliminados || usuariosEliminados.length === 0) return datos
+  return {
+    ...datos,
+    salarios: (datos.salarios || []).map(s =>
+      usuariosEliminados.includes(s.usuarioId) ? { ...s, monto: 0 } : s
+    ),
+    variaciones: (datos.variaciones || []).map(v =>
+      usuariosEliminados.includes(v.usuarioId) ? { ...v, monto: 0 } : v
+    ),
+  }
+}
+
+// escenario: { usuariosEliminados: [id, ...] }
+// Devuelve cuántos meses aguanta el fondo ante el escenario dado.
+export function proyectarRunwayFondo(datos, escenario, { horizonteMaxMeses = 60 } = {}) {
+  const saldoActual = parseFloat(
+    (datos.ubicacion || []).find(c => c.id === "fondo-emergencia")?.monto
+  ) || 0
+
+  const datosEscenario = _clonarDatosConEscenario(datos, escenario)
+
+  const hoy = new Date()
+  let mes = hoy.getMonth() + 2
+  let anio = hoy.getFullYear()
+  if (mes > 12) { mes = 1; anio++ }
+
+  let saldo = saldoActual
+  let totalDeficit = 0
+  let mesesConDeficit = 0
+
+  for (let i = 0; i < horizonteMaxMeses; i++) {
+    const ingreso = calcularIngresoCompartidoTotal(datosEscenario, mes, anio)
+    const egresosBase = egresosActivosEnMes(datosEscenario.egresos || [], mes, anio)
+      .reduce((acc, e) => acc + montoEgresoMes(e, anio, mes), 0)
+
+    const deficit = egresosBase - ingreso
+    if (deficit > 0) {
+      saldo -= deficit
+      totalDeficit += deficit
+      mesesConDeficit++
+      if (saldo <= 0) {
+        return {
+          mesesRunway: i + 1,
+          fechaAgotamiento: new Date(anio, mes - 1, 1),
+          huboDeficit: true,
+          deficitMensualPromedio: totalDeficit / mesesConDeficit,
+          saldoActual,
+        }
+      }
+    }
+
+    mes++
+    if (mes > 12) { mes = 1; anio++ }
+  }
+
+  return {
+    mesesRunway: mesesConDeficit > 0 ? horizonteMaxMeses : null,
+    fechaAgotamiento: null,
+    huboDeficit: mesesConDeficit > 0,
+    deficitMensualPromedio: mesesConDeficit > 0 ? totalDeficit / mesesConDeficit : 0,
+    saldoActual,
+  }
+}
+
+// ── Helpers internos de rendimiento (Dietz) ───────────────────────────────────
+
+function _calcularDietz(montoInicial, montoFinal, aportaciones, anio, mes) {
+  if (!montoInicial || montoFinal === null || montoFinal === undefined || montoFinal === "") return null
+  const diasEnMes = new Date(anio, mes, 0).getDate()
+  let flujoTotal = 0
+  let flujosPonderados = 0
+  for (const ap of (aportaciones || [])) {
+    const dia = new Date(ap.fecha).getDate()
+    const peso = (diasEnMes - dia) / diasEnMes
+    flujoTotal += ap.monto
+    flujosPonderados += ap.monto * peso
+  }
+  const denominador = montoInicial + flujosPonderados
+  if (denominador === 0) return null
+  return (montoFinal - montoInicial - flujoTotal) / denominador
+}
+
+function _calcularNetoInflacion(bruto, inflacion) {
+  if (bruto === null || inflacion === null || inflacion === undefined) return null
+  return (1 + bruto) / (1 + inflacion) - 1
+}
+
+// ── Promedio de rendimiento del portfolio ─────────────────────────────────────
+
+// Devuelve el rendimiento mensual promedio ponderado por saldo de los últimos N meses.
+// tipo: "neto" (descuenta inflación) | "bruto"
+export function promedioRendimientoPortfolio(datos, { meses = 12, tipo = "neto" } = {}) {
+  const hoy = new Date()
+  let mes = hoy.getMonth() + 1
+  let anio = hoy.getFullYear()
+
+  const mesesObj = []
+  for (let i = 0; i < meses; i++) {
+    mesesObj.unshift({ mes, anio })
+    mes--
+    if (mes < 1) { mes = 12; anio-- }
+  }
+
+  const cuentas = (datos.cuentasInversion || []).filter(c => !c.eliminado)
+  let sumaPonderada = 0
+  let sumaWeights = 0
+  let mesesConDato = 0
+  const cuentasIncluidas = new Set()
+
+  for (const { mes: m, anio: a } of mesesObj) {
+    for (const cuenta of cuentas) {
+      const registro = (datos.inversiones || []).find(
+        r => !r.eliminado && r.cuentaId === cuenta.id && r.mes === m && r.anio === a
+      )
+      if (!registro) continue
+      const bruto = _calcularDietz(registro.montoInicial, registro.montoFinal, registro.aportaciones, a, m)
+      const rendimiento = tipo === "neto"
+        ? _calcularNetoInflacion(bruto, registro.inflacion)
+        : bruto
+      if (rendimiento === null) continue
+      const saldo = registro.montoInicial || 0
+      sumaPonderada += rendimiento * saldo
+      sumaWeights += saldo
+      mesesConDato++
+      cuentasIncluidas.add(cuenta.nombre)
+    }
+  }
+
+  return {
+    rMensual: sumaWeights > 0 ? sumaPonderada / sumaWeights : null,
+    mesesConDato,
+    cuentasIncluidas: [...cuentasIncluidas],
+  }
+}
+
+// ── Saldo actual total de cuentas de inversión ────────────────────────────────
+
+export function calcularSaldoTotalInversion(datos) {
+  const cuentas = (datos.cuentasInversion || []).filter(c => !c.eliminado)
+  return cuentas.reduce((total, cuenta) => {
+    const registros = (datos.inversiones || [])
+      .filter(r => !r.eliminado && r.cuentaId === cuenta.id && r.montoFinal !== null && r.montoFinal !== undefined && r.montoFinal !== "")
+      .sort((a, b) => indiceMes(b.anio, b.mes) - indiceMes(a.anio, a.mes))
+    const ultimo = registros[0]
+    return total + (ultimo ? parseFloat(ultimo.montoFinal) || 0 : 0)
+  }, 0)
+}
+
+// ── Proyección de inversiones a futuro ────────────────────────────────────────
+
+// Devuelve un array con snapshot al final de cada año proyectado.
+// anios: número de años a proyectar
+export function proyectarInversion({ saldoInicial, aporteMensual, rMensual, anios }) {
+  const resultados = []
+  let saldo = saldoInicial
+  let aportadoAcum = 0
+  const totalMeses = anios * 12
+
+  for (let i = 1; i <= totalMeses; i++) {
+    saldo = saldo * (1 + rMensual) + aporteMensual
+    aportadoAcum += aporteMensual
+    if (i % 12 === 0) {
+      resultados.push({
+        anio: i / 12,
+        aportadoAcum,
+        rendimientoAcum: saldo - saldoInicial - aportadoAcum,
+        saldo,
+      })
+    }
+  }
+  return resultados
 }

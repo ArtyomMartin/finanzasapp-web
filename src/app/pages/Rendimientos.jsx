@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { useDatos } from "../context/AppContext"
 import DrawerMenu from "../components/DrawerMenu"
 import { NOMBRES_MESES } from "../services/formateo"
+import { promedioRendimientoPortfolio, proyectarInversion, calcularSaldoTotalInversion, inversionesActivasEnMes } from "../services/calculos"
 import { 
   COLORES, 
   estiloPantalla, 
@@ -23,7 +24,7 @@ import {
   estiloBotonOpcion,
   estiloBotonOpcionActivo
 } from "../theme"
-import { TrendingUp, Landmark, Plus, Download, Trash2, Pencil, X } from "lucide-react"
+import { TrendingUp, Landmark, Plus, Download, Trash2, Pencil, X, ChevronDown, ChevronUp } from "lucide-react"
 
 // ── CONSTANTES ────────────────────────────────────────────────────────────────
 const SIMBOLO = "€"
@@ -108,6 +109,27 @@ export default function Rendimientos() {
   const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear())
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState(null)
   const [modal, setModal] = useState(null)
+
+  // Estado proyección
+  const [proyExpanded, setProyExpanded] = useState(false)
+  const [proyHorizonte, setProyHorizonte] = useState(5)
+  const [proyAporte, setProyAporte] = useState("")
+  const [proyRendimiento, setProyRendimiento] = useState("")
+  const [proySaldo, setProySaldo] = useState("")
+
+  // Prefill proyección cuando se expande
+  useEffect(() => {
+    if (!proyExpanded) return
+    const hoy = new Date()
+    const saldoInicial = calcularSaldoTotalInversion(datos)
+    const aporteActual = inversionesActivasEnMes(datos.inversiones || [], hoy.getMonth() + 1, hoy.getFullYear())
+      .reduce((acc, e) => acc + e.monto, 0)
+    const { rMensual } = promedioRendimientoPortfolio(datos, { meses: 12, tipo: "neto" })
+
+    if (proySaldo === "") setProySaldo(saldoInicial.toFixed(2))
+    if (proyAporte === "") setProyAporte(aporteActual.toFixed(2))
+    if (proyRendimiento === "" && rMensual !== null) setProyRendimiento((rMensual * 100).toFixed(3))
+  }, [proyExpanded])
 
   const cuentas = getCuentas(datos)
   const anios = getAnios(datos)
@@ -388,12 +410,151 @@ export default function Rendimientos() {
         </>
       )}
 
+      {/* Proyección de inversiones */}
+      <SeccionProyeccion
+        expanded={proyExpanded}
+        onToggle={() => setProyExpanded(p => !p)}
+        horizonte={proyHorizonte}
+        setHorizonte={setProyHorizonte}
+        aporte={proyAporte}
+        setAporte={setProyAporte}
+        rendimiento={proyRendimiento}
+        setRendimiento={setProyRendimiento}
+        saldo={proySaldo}
+        setSaldo={setProySaldo}
+        datos={datos}
+        fmt={fmt}
+        simbolo={simbolo}
+      />
+
       {/* Modales via portal */}
       {modal?.tipo === "cuenta" && <ModalCuenta cuentas={cuentas} onGuardar={guardarCuenta} onEliminar={eliminarCuenta} onCerrar={() => setModal(null)} />}
       {modal?.tipo === "mes" && <ModalMes mes={modal.mes} anio={modal.anio} registro={modal.registro} simbolo={simbolo} onGuardar={guardarMes} onCerrar={() => setModal(null)} />}
       {modal?.tipo === "aportacion" && <ModalAportacion registroId={modal.registroId} simbolo={simbolo} onGuardar={guardarAportacion} onCerrar={() => setModal(null)} />}
       {modal?.tipo === "confirmarBorrarAnio" && <ModalConfirmar titulo={`¿Borrar todos los datos de ${anioSeleccionado}?`} descripcion="Esta acción eliminará todos los registros del año. No se puede deshacer." onConfirmar={borrarAnio} onCancelar={() => setModal(null)} />}
       {modal?.tipo === "confirmarBorrarMes" && <ModalConfirmar titulo="¿Borrar este mes?" descripcion="Se eliminará el registro del mes. No se puede deshacer." onConfirmar={() => eliminarMes(modal.registroId)} onCancelar={() => setModal(null)} />}
+    </div>
+  )
+}
+
+// ── SECCIÓN PROYECCIÓN ────────────────────────────────────────────────────────
+
+function SeccionProyeccion({ expanded, onToggle, horizonte, setHorizonte, aporte, setAporte, rendimiento, setRendimiento, saldo, setSaldo, datos, fmt, simbolo }) {
+  const { rMensual: rHistorico, mesesConDato } = promedioRendimientoPortfolio(datos, { meses: 12, tipo: "neto" })
+
+  const saldoN = parseFloat(String(saldo).replace(",", ".")) || 0
+  const aporteN = parseFloat(String(aporte).replace(",", ".")) || 0
+  const rMensualN = (parseFloat(String(rendimiento).replace(",", ".")) || 0) / 100
+
+  const resultados = expanded && rMensualN !== 0
+    ? proyectarInversion({ saldoInicial: saldoN, aporteMensual: aporteN, rMensual: rMensualN, anios: horizonte })
+    : []
+
+  return (
+    <div style={{ ...estiloTarjeta, marginTop: "24px", marginBottom: "24px", padding: 0, overflow: "hidden" }}>
+      <button
+        onClick={onToggle}
+        style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: "none", border: "none", cursor: "pointer", color: COLORES.textoBlanco }}
+      >
+        <span style={{ fontSize: "15px", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
+          <TrendingUp size={16} color={COLORES.primario} /> Proyección de inversiones
+        </span>
+        {expanded ? <ChevronUp size={18} color={COLORES.textoMuted} /> : <ChevronDown size={18} color={COLORES.textoMuted} />}
+      </button>
+
+      {expanded && (
+        <div style={{ padding: "0 20px 20px", borderTop: `1px solid ${COLORES.borde}` }}>
+          {mesesConDato > 0 && rHistorico !== null && (
+            <p style={{ margin: "12px 0", fontSize: "12px", color: COLORES.textoMuted, padding: "8px 10px", background: COLORES.fondoPanel, borderRadius: "6px" }}>
+              Rendimiento neto promedio últimos {mesesConDato} meses:{" "}
+              <strong style={{ color: rHistorico >= 0 ? COLORES.positivo : COLORES.peligro }}>
+                {(rHistorico * 100).toFixed(3)}%/mes
+              </strong>
+              {mesesConDato < 6 && " · Pocos datos, proyección poco confiable"}
+            </p>
+          )}
+          {mesesConDato === 0 && (
+            <p style={{ margin: "12px 0", fontSize: "12px", color: COLORES.textoMuted }}>Sin rendimientos históricos. Ingresá el % mensual esperado manualmente.</p>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "12px" }}>
+            <div>
+              <label style={{ ...estiloLabel, fontSize: "12px" }}>Saldo inicial ({simbolo})</label>
+              <input style={{ ...estiloInput, marginBottom: 0 }} type="number" value={saldo} onChange={e => setSaldo(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label style={{ ...estiloLabel, fontSize: "12px" }}>Aporte mensual ({simbolo})</label>
+              <input style={{ ...estiloInput, marginBottom: 0 }} type="number" value={aporte} onChange={e => setAporte(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label style={{ ...estiloLabel, fontSize: "12px" }}>Rendimiento mensual (%)</label>
+              <input style={{ ...estiloInput, marginBottom: 0 }} type="number" step="0.001" value={rendimiento} onChange={e => setRendimiento(e.target.value)} placeholder="ej: 0.650" />
+            </div>
+            <div>
+              <label style={{ ...estiloLabel, fontSize: "12px" }}>Horizonte</label>
+              <div style={{ display: "flex", gap: "6px" }}>
+                {[1, 3, 5, 10].map(a => (
+                  <button key={a} onClick={() => setHorizonte(a)} style={{
+                    flex: 1, padding: "10px 0", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "700",
+                    background: horizonte === a ? COLORES.primarioSuave : COLORES.fondoPanel,
+                    border: `1px solid ${horizonte === a ? COLORES.primario : COLORES.borde}`,
+                    color: horizonte === a ? COLORES.textoBlanco : COLORES.textoSecundario,
+                  }}>{a}a</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {resultados.length > 0 && (
+            <>
+              {/* Resultado final destacado */}
+              <div style={{ marginTop: "20px", padding: "14px", background: COLORES.primarioSuave, borderRadius: "10px", textAlign: "center" }}>
+                <p style={{ margin: "0 0 4px", fontSize: "12px", color: COLORES.textoMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  En {horizonte} {horizonte === 1 ? "año" : "años"} tendrías
+                </p>
+                <p style={{ margin: "0 0 8px", fontSize: "28px", fontWeight: "800", color: COLORES.textoBlanco }}>
+                  {fmt(resultados[resultados.length - 1].saldo)}
+                </p>
+                <div style={{ display: "flex", justifyContent: "center", gap: "20px", fontSize: "13px" }}>
+                  <span style={{ color: COLORES.textoMuted }}>
+                    Aportado: <strong style={{ color: COLORES.textoSecundario }}>{fmt(resultados[resultados.length - 1].aportadoAcum + saldoN)}</strong>
+                  </span>
+                  <span style={{ color: COLORES.textoMuted }}>
+                    Rendimiento: <strong style={{ color: COLORES.positivo }}>{fmt(resultados[resultados.length - 1].rendimientoAcum)}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Tabla anual */}
+              <div style={{ overflowX: "auto", marginTop: "16px" }}>
+                <table style={estiloTabla}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...estiloTh, textAlign: "left" }}>Año</th>
+                      <th style={estiloTh}>Saldo</th>
+                      <th style={estiloTh}>Aportado</th>
+                      <th style={estiloTh}>Rendimiento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resultados.map((r, i) => (
+                      <tr key={i} style={{ backgroundColor: i % 2 === 0 ? COLORES.fondoTarjeta : COLORES.fondoPanel }}>
+                        <td style={{ ...estiloTd, textAlign: "left", color: COLORES.textoBlanco, fontWeight: "600" }}>Año {r.anio}</td>
+                        <td style={{ ...estiloTd, color: COLORES.textoBlanco, fontWeight: "700" }}>{fmt(r.saldo)}</td>
+                        <td style={{ ...estiloTd, color: COLORES.textoSecundario }}>{fmt(r.aportadoAcum + saldoN)}</td>
+                        <td style={{ ...estiloTd, color: r.rendimientoAcum >= 0 ? COLORES.positivo : COLORES.peligro }}>{fmt(r.rendimientoAcum)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ margin: "8px 0 0", fontSize: "11px", color: COLORES.textoMuted, textAlign: "center" }}>
+                Proyección con rendimiento neto constante de {rendimiento}%/mes. No garantiza rendimientos futuros.
+              </p>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -31,7 +31,7 @@ import { nombreMes, nombreMesCorto } from "./services/formateo"
 import { Cloud, CloudOff, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Wallet, Settings, Package, Loader2, User, X, ArrowLeft, Check } from "lucide-react";
 
 // ── Servicios de lógica ────────────────────────────────────────────────────
-import { calcularMes, calcularDetalleGastos, proximosMeses, calcularIngresosTotales, calcularEgresosTotales } from "./services/calculos"
+import { calcularMes, calcularDetalleGastos, proximosMeses, calcularIngresosTotales, calcularEgresosTotales, hayDeficitMes } from "./services/calculos"
 
 // ── Tema visual ────────────────────────────────────────────────────────────
 import { COLORES } from "./theme/colores"
@@ -308,8 +308,14 @@ function Home() {
     const { netoProvisorio, gastos, netoFinal } = calcularMes(datos, usuarioActivo, mes, anio)
     const ingresos = calcularIngresosTotales(datos, mes, anio)
     const egresos  = calcularEgresosTotales(datos, mes, anio)
-    return { mes, anio, ingresos, egresos, netoProvisorio, gastos, netoFinal }
+    const deficit  = hayDeficitMes(datos, mes, anio)
+    return { mes, anio, ingresos, egresos, netoProvisorio, gastos, netoFinal, deficit }
   })
+
+  const mesActualDeficit = filas[0]?.deficit
+  const algunMesFuturoDeficit = filas.slice(1).some(f => f.deficit)
+  const hayAlgunDeficit = mesActualDeficit || algunMesFuturoDeficit
+  const [mostrarPopupDeficit, setMostrarPopupDeficit] = useState(false)
 
   const detalleData = mesDetalle
     ? { ...calcularMes(datos, usuarioActivo, mesDetalle.mes, mesDetalle.anio), ...calcularDetalleGastos(datos, usuarioActivo, mesDetalle.mes, mesDetalle.anio) }
@@ -349,7 +355,49 @@ function Home() {
 
       <div style={estiloHeader}>
         <h2 style={{ margin: 0, fontSize: "17px", fontWeight: "bold", color: COLORES.textoBlanco }}>FinanzasApp</h2>
+        {hayAlgunDeficit && (
+          <button
+            onClick={() => setMostrarPopupDeficit(true)}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              background: mesActualDeficit ? "rgba(239,68,68,0.15)" : "rgba(217,119,6,0.15)",
+              border: `1px solid ${mesActualDeficit ? COLORES.peligro : COLORES.advertencia}`,
+              borderRadius: "20px", padding: "5px 12px", cursor: "pointer",
+              color: mesActualDeficit ? COLORES.peligro : COLORES.advertencia,
+              fontSize: "12px", fontWeight: "700",
+            }}
+          >
+            <AlertTriangle size={13} />
+            {mesActualDeficit ? "Déficit activo" : "Déficit próximo"}
+          </button>
+        )}
       </div>
+
+      {mostrarPopupDeficit && createPortal(
+        <div style={{ ...estiloPopupOverlay, animation: "fadeIn 0.2s ease" }} onClick={() => setMostrarPopupDeficit(false)}>
+          <div style={{ ...estiloPopup, animation: "popupIn 0.25s cubic-bezier(0.32,0.72,0,1)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid rgba(255,255,255,0.06)` }}>
+              <span style={{ fontSize: "16px", fontWeight: "700", color: COLORES.textoBlanco, display: "flex", alignItems: "center", gap: "8px" }}>
+                <AlertTriangle size={16} color={COLORES.advertencia} /> Meses con déficit
+              </span>
+              <button onClick={() => setMostrarPopupDeficit(false)} style={{ background: "none", border: "none", cursor: "pointer", color: COLORES.textoMuted, display: "flex" }}><X size={18} /></button>
+            </div>
+            <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1 }}>
+              <p style={{ margin: "0 0 12px", fontSize: "13px", color: COLORES.textoSecundario, lineHeight: "1.5" }}>
+                En los meses indicados los egresos fijos superan los ingresos.<br />
+                Las inversiones y el aporte al fondo se pausan automáticamente ese mes.
+              </p>
+              {filas.filter(f => f.deficit).map((f, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+                  <span style={{ fontSize: "14px", color: COLORES.textoBlanco, fontWeight: "600" }}>{nombreMesCorto(f.mes)} {f.anio}</span>
+                  <span style={{ fontSize: "13px", color: COLORES.peligro }}>Inversiones y fondo pausados</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Tabla */}
       <div style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", paddingBottom: "72px" }}>
